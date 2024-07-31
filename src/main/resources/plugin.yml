@@ -1,0 +1,6 @@
+name: SMPItems
+version: '1.0'
+main: io.github.maliciousfiles.smpitems.SMPItems
+api-version: '1.21'
+authors: [ MaliciousFiles ]
+description: Plugin to add some custom items for an SMP.
