@@ -1,4 +1,3 @@
-![image](https://github.com/user-attachments/assets/7929c8ea-77f1-4eba-aa6b-9d6146af54ec)# SMP Items
 Various custom items, fully integrated into the game for survival use (no commands).
 &nbsp;&nbsp;&nbsp;i.e. `/home` and `/tpa` are replaced by the **Teleportation Device**
 
