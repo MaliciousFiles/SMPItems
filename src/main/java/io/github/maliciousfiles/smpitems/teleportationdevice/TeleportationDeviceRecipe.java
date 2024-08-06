@@ -15,6 +15,7 @@ import net.minecraft.network.protocol.game.ClientboundUpdateRecipesPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.CraftingMenu;
 import net.minecraft.world.inventory.RecipeBookMenu;
+import net.minecraft.world.inventory.TransientCraftingContainer;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import org.bukkit.Bukkit;
@@ -29,9 +30,7 @@ import org.bukkit.craftbukkit.inventory.CraftShapedRecipe;
 import org.bukkit.craftbukkit.util.CraftNamespacedKey;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.CraftItemEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.inventory.PrepareItemCraftEvent;
+import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.*;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -202,35 +201,59 @@ public class TeleportationDeviceRecipe {
             }
         }
 
-        @EventHandler
-        public void onPrepareCraft(PrepareItemCraftEvent evt) {
-            TeleportationDevice device = TeleportationDevice.fromItem(evt.getInventory().getItem(deviceIdx+1));
+        private boolean isRecipe(CraftingInventory inv) {
+            TeleportationDevice device = TeleportationDevice.fromItem(inv.getItem(deviceIdx+1));
             if (device == null || !validInput.test(device)) {
-//                evt.getInventory().setResult(null);
-                return;
+                return false;
             }
 
             for (Map.Entry<Integer, Pair<Material, Integer>> entry : rawRecipe.entrySet()) {
-                ItemStack item = evt.getInventory().getItem(entry.getKey());
+                ItemStack item = inv.getItem(entry.getKey());
                 if (item == null || item.getType() != entry.getValue().getFirst() || item.getAmount() < entry.getValue().getSecond()) {
-//                    evt.getInventory().setResult(null);
-                    return;
+                    return false;
                 }
             }
 
-            evt.getInventory().setResult(transformer.apply(device));
+            return true;
         }
 
         @EventHandler
+        public void onPrepareCraft(PrepareItemCraftEvent evt) {
+            if (isRecipe(evt.getInventory())) {
+                evt.getInventory().setResult(transformer.apply(TeleportationDevice.fromItem(evt.getInventory().getItem(deviceIdx+1))));
+            }
+        }
+
+        @EventHandler
+        public void onCraft(InventoryClickEvent evt) {
+            if (!(evt.getInventory() instanceof CraftingInventory inv) || evt.getSlotType() != InventoryType.SlotType.RESULT || !isRecipe(inv)) return;
+
+            ((CraftingMenu) ((CraftPlayer) evt.getWhoClicked()).getHandle().containerMenu).resultSlots.setRecipeUsed(((CraftServer) Bukkit.getServer()).getServer().getRecipeManager().byKey(CraftNamespacedKey.toMinecraft(recipe.getKey())).orElseThrow());
+            ((CraftInventoryCrafting) inv).getMatrixInventory().setCurrentRecipe((RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe>) ((CraftServer) Bukkit.getServer()).getServer().getRecipeManager().byKey(CraftNamespacedKey.toMinecraft(recipe.getKey())).orElseThrow());
+
+            int[] amounts = new int[10];
+            for (int i : rawRecipe.keySet()) {
+                ItemStack item = evt.getInventory().getItem(i);
+                if (item != null) amounts[i] = item.getAmount() - rawRecipe.get(i).getSecond();
+            }
+            Bukkit.getScheduler().runTask(SMPItems.instance, () -> {
+                for (int i : rawRecipe.keySet()) {
+                    ItemStack item = inv.getItem(i);
+                    if (item != null) item.setAmount(amounts[i]);
+                }
+            });
+        }
+
+        /*@EventHandler
         public void onCraft(CraftItemEvent evt) {
-            if (!(evt.getRecipe() instanceof CraftingRecipe cr && cr.getKey().equals(recipe.getKey()))) return;
+            if (!isRecipe(evt.getInventory())) return;
 
             for (int i : rawRecipe.keySet()) {
                 ItemStack item = evt.getInventory().getItem(i);
-                if (item != null) {
+                if (item != null && item.getType().equals(rawRecipe.get(i).getFirst())) {
                     item.setAmount(item.getAmount() - rawRecipe.get(i).getSecond()+1);
                 }
             }
-        }
+        }*/
     }
 }

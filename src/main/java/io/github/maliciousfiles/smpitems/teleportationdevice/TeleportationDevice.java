@@ -183,6 +183,12 @@ public class TeleportationDevice implements Cloneable {
         return this;
     }
 
+    public TeleportationDevice setLinked(UUID item) {
+        if (!items.contains(item)) toggleItemLink(item);
+
+        return this;
+    }
+
     public TeleportationDevice removeFavorite(Object obj) {
         favorites.remove(obj);
         if (obj == selected) selected = NO_SELECTION;
@@ -259,12 +265,12 @@ public class TeleportationDevice implements Cloneable {
                             .color(NamedTextColor.GRAY),
                     Component.text("Use Time: ")
                             .append(Component.text(useTime, NamedTextColor.WHITE))
-                            .append(Component.text(getUpgradeCompletion(UpgradeType.USE_TIME)))
+                            .append(Component.text(getUpgradeCompletion(UpgradeType.USE_TIME, UpgradeType.FINAL_USE_TIME)))
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY),
                     Component.empty(),
                     Component.text("Anchors: %s/%s".formatted(anchors.size(), connections == -1 ? "∞" : connections))
-//                            .append(Component.text(getUpgradeCompletion(UpgradeType.CONNECTIONS)))
+                            .append(Component.text(getUpgradeCompletion(UpgradeType.CONNECTIONS, UpgradeType.FINAL_CONNECTIONS)))
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY),
                     Component.text("Linked: %s".formatted(items.size()))
@@ -272,7 +278,7 @@ public class TeleportationDevice implements Cloneable {
                             .color(NamedTextColor.GRAY),
                     Component.empty(),
                     Component.text("Uses: "+(uses == -1 ? "∞" : "%s/%s".formatted(uses-meta.getDamage(), uses)))
-//                            .append(Component.text(getUpgradeCompletion(UpgradeType.USES)))
+                            .append(Component.text(getUpgradeCompletion(UpgradeType.USES, UpgradeType.FINAL_USES)))
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY)
             ));
@@ -339,7 +345,7 @@ public class TeleportationDevice implements Cloneable {
         FINAL_RANGE(RANGE, List.of(
                 Pair.of(Material.GOLD_BLOCK, 1), Pair.of(Material.NETHERITE_INGOT, 1), Pair.of(Material.GOLD_BLOCK, 1),
                 Pair.of(Material.END_CRYSTAL, 1),         Pair.of(null, 0),            Pair.of(Material.END_CRYSTAL, 1),
-                Pair.of(Material.SHULKER_SHELL, 1), Pair.of(Material.GOLD_BLOCK, 1), Pair.of(Material.SHULKER_SHELL, 1)
+                Pair.of(Material.SHULKER_SHELL, 1), Pair.of(Material.DIAMOND_BLOCK, 1), Pair.of(Material.SHULKER_SHELL, 1)
         ), device -> device.range = -1, Pair.of("Range: ", "∞")),
         USE_TIME(2, List.of(
                 Pair.of(Material.REDSTONE_BLOCK, 2), Pair.of(Material.QUARTZ_BLOCK, 2), Pair.of(Material.REDSTONE_BLOCK, 2),
@@ -358,8 +364,8 @@ public class TeleportationDevice implements Cloneable {
         ), device -> device.connections += 2, Pair.of("Anchors: ", "+2")),
         FINAL_CONNECTIONS(CONNECTIONS, List.of(
                 Pair.of(Material.COPPER_BLOCK, 32), Pair.of(Material.BEACON, 1),   Pair.of(Material.COPPER_BLOCK, 32),
-                Pair.of(Material.DRAGON_BREATH, 1),         Pair.of(null, 0),          Pair.of(Material.DRAGON_BREATH, 1),
-                Pair.of(Material.SCULK_CATALYST, 1), Pair.of(Material.NETHERITE_INGOT, 1), Pair.of(Material.SCULK_CATALYST, 1)
+                Pair.of(Material.ENDER_EYE, 16),         Pair.of(null, 0),          Pair.of(Material.ENDER_EYE, 16),
+                Pair.of(Material.CALIBRATED_SCULK_SENSOR, 1), Pair.of(Material.DIAMOND_BLOCK, 1), Pair.of(Material.CALIBRATED_SCULK_SENSOR, 1)
         ), device -> device.connections = -1, Pair.of("Anchors: ", "∞")),
         USES(2, List.of(
                 Pair.of(Material.IRON_BLOCK, 8), Pair.of(Material.EMERALD_BLOCK, 4), Pair.of(Material.IRON_BLOCK, 8),
@@ -367,7 +373,9 @@ public class TeleportationDevice implements Cloneable {
                 Pair.of(Material.IRON_BLOCK, 8), Pair.of(Material.EMERALD_BLOCK, 4), Pair.of(Material.IRON_BLOCK, 8)
         ), device -> device.uses += 10, Pair.of("Uses: ", "+10")),
         FINAL_USES(USES, List.of(
-
+                Pair.of(Material.EMERALD_BLOCK, 8), Pair.of(Material.ENCHANTED_GOLDEN_APPLE, 1), Pair.of(Material.EMERALD_BLOCK, 8),
+                Pair.of(Material.OMINOUS_TRIAL_KEY, 1),         Pair.of(null, 0),            Pair.of(Material.OMINOUS_TRIAL_KEY, 1),
+                Pair.of(Material.DRAGON_BREATH, 1), Pair.of(Material.NETHERITE_INGOT, 1), Pair.of(Material.DRAGON_BREATH, 1)
         ), device -> device.uses = -1, Pair.of("Uses: ", "∞"));
 
         public static void initAll() {
@@ -420,7 +428,7 @@ public class TeleportationDevice implements Cloneable {
             });
 
             this.recipe = new TeleportationDeviceRecipe(
-                    device -> device.isEvolved() == (prereq != null),
+                    prereq != null ? TeleportationDevice::isEvolved : device -> true,
                     device -> device.upgrades.stream().filter(upgrade -> upgrade == this).count() < limit &&
                             (prereq == null || device.isEvolved() && device.upgrades.stream()
                                     .filter(upgrade -> upgrade == prereq).count() == prereq.limit),

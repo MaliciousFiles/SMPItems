@@ -136,7 +136,7 @@ public class TeleportationDeviceHandler implements Listener {
                 for (TeleportationDevice d2 : devices.keySet()) {
                     if (d1 == d2) continue;
 
-                    d1.toggleItemLink(d2.getId());
+                    d1.setLinked(d2.getId());
                 }
 
                 d1.updateItem(devices.get(d1));
