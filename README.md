@@ -57,7 +57,7 @@ A [custom resource pack](https://github.com/MaliciousFiles/SMPItems/raw/main/SMP
 
   ### Use Time
     Use Time: 2
-  Getting damaged no longer cancels teleportation.
+    Getting damaged no longer cancels teleportation.
   ![image](https://github.com/user-attachments/assets/c8fd896b-bc4a-4199-a551-9801e8fd7b07)
 
   ### Connections
