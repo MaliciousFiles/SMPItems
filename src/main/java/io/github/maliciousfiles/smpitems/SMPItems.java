@@ -68,7 +68,7 @@ public final class SMPItems extends JavaPlugin implements CommandExecutor, TabCo
             sender.sendMessage(Component.text("Click to download resource pack")
                     .decorate(TextDecoration.UNDERLINED)
                     .color(NamedTextColor.BLUE)
-                    .clickEvent(ClickEvent.openUrl("https://github.com/MaliciousFiles/SMPItems/SMPItems%20Resource%20Pack.zip")));
+                    .clickEvent(ClickEvent.openUrl("https://github.com/MaliciousFiles/SMPItems/raw/main/SMPItems%20Resource%20Pack.zip")));
         }
 
         return true;
