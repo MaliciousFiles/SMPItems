@@ -4,3 +4,10 @@ main: io.github.maliciousfiles.smpitems.SMPItems
 api-version: '1.21'
 authors: [ MaliciousFiles ]
 description: Plugin to add some custom items for an SMP.
+commands:
+  recipes:
+    description: Get the link to the custom recipes.
+    usage: /recipes
+  textures:
+    description: Get the link to the SMPItems Resource Pack.
+    usage: /textures

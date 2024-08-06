@@ -3,16 +3,26 @@ package io.github.maliciousfiles.smpitems;
 import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationDevice;
 import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationDeviceHandler;
 import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationMenuHandler;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.inventory.CraftingRecipe;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.function.Consumer;
 
-public final class SMPItems extends JavaPlugin {
+public final class SMPItems extends JavaPlugin implements CommandExecutor, TabCompleter {
 
     public static SMPItems instance;
 
@@ -44,5 +54,25 @@ public final class SMPItems extends JavaPlugin {
     @Override
     public void onDisable() {
         TeleportationMenuHandler.disable();
+    }
+
+    @Override
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+        if (label.equalsIgnoreCase("recipes")) {
+            sender.sendMessage(Component.text("https://github.com/MaliciousFiles/SMPItems/README.md")
+                    .decorate(TextDecoration.UNDERLINED)
+                    .color(NamedTextColor.GOLD));
+        } else if (label.equalsIgnoreCase("textures")) {
+            sender.sendMessage(Component.text("https://github.com/MaliciousFiles/SMPItems/SMPItems%20Resource%20Pack.zip")
+                    .decorate(TextDecoration.UNDERLINED)
+                    .color(NamedTextColor.GOLD));
+        }
+
+        return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+        return List.of();
     }
 }
