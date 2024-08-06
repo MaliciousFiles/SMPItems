@@ -4,6 +4,7 @@ import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationDevice
 import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationDeviceHandler;
 import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationMenuHandler;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
@@ -59,13 +60,15 @@ public final class SMPItems extends JavaPlugin implements CommandExecutor, TabCo
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (label.equalsIgnoreCase("recipes")) {
-            sender.sendMessage(Component.text("https://github.com/MaliciousFiles/SMPItems/README.md")
+            sender.sendMessage(Component.text("Click to open recipes in browser")
                     .decorate(TextDecoration.UNDERLINED)
-                    .color(NamedTextColor.GOLD));
+                    .color(NamedTextColor.BLUE)
+                    .clickEvent(ClickEvent.openUrl("https://github.com/MaliciousFiles/SMPItems/blob/main/README.md")));
         } else if (label.equalsIgnoreCase("textures")) {
-            sender.sendMessage(Component.text("https://github.com/MaliciousFiles/SMPItems/SMPItems%20Resource%20Pack.zip")
+            sender.sendMessage(Component.text("Click to download resource pack")
                     .decorate(TextDecoration.UNDERLINED)
-                    .color(NamedTextColor.GOLD));
+                    .color(NamedTextColor.BLUE)
+                    .clickEvent(ClickEvent.openUrl("https://github.com/MaliciousFiles/SMPItems/SMPItems%20Resource%20Pack.zip")));
         }
 
         return true;

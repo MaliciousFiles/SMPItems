@@ -234,8 +234,10 @@ public class TeleportationDevice implements Cloneable {
             meta.setMaxDamage(uses == -1 ? null : uses);
             meta.displayName(name);
 
-            int modelDataMod = uses != -1 && meta.getDamage() >= uses ? 1 : 0;
+            int modelDataMod = (uses != -1 && meta.getDamage() >= uses ? 1 : 0) + (isEvolved() ? 2 : 0);
             meta.setCustomModelData(MODEL_DATA_BASE + modelDataMod);
+
+            meta.setEnchantmentGlintOverride(modelDataMod == 2); // evolved and not broken
 
             PersistentDataContainer pdc = meta.getPersistentDataContainer();
             pdc.set(RANGE_KEY, PersistentDataType.INTEGER, range);
@@ -416,7 +418,7 @@ public class TeleportationDevice implements Cloneable {
                 meta.displayName(Component.text(StringUtils.capitaliseAllWords(name().toLowerCase().replace('_', ' '))+" Upgrade")
                         .color(NamedTextColor.AQUA)
                         .decoration(TextDecoration.ITALIC, false));
-                meta.setCustomModelData(MODEL_DATA_BASE);
+                meta.setCustomModelData(MODEL_DATA_BASE+(prereq == null ? 0 : 2));
 
                 List<Component> loreList = new ArrayList<>();
                 loreList.add(Component.empty());

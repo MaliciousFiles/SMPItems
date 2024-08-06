@@ -455,6 +455,7 @@ public class TeleportationDeviceHandler implements Listener {
                 evt.getPlayer().getLocation().add(0, 1, 0),
                 20, 0, 0, 0, 5);
 
+        evt.getPlayer().setFallDistance(0);
         if (device.getSelected() instanceof Location loc) {
             evt.getPlayer().teleport(loc.clone().add(0.5, 1, 0.5));
         } else if (device.getSelected() instanceof UUID uuid) {

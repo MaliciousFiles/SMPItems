@@ -61,6 +61,22 @@
         {
             "predicate": { "custom_model_data": 9123488, "blocking": 1 },
             "model": "item/teleportation_device_broken_using"
+        },
+        {
+            "predicate": { "custom_model_data": 9123489 },
+            "model": "item/evolved_teleportation_device"
+        },
+        {
+            "predicate": { "custom_model_data": 9123489, "blocking": 1 },
+            "model": "item/evolved_teleportation_device_using"
+        },
+        {
+            "predicate": { "custom_model_data": 9123490 },
+            "model": "item/evolved_teleportation_device_broken"
+        },
+        {
+            "predicate": { "custom_model_data": 9123490, "blocking": 1 },
+            "model": "item/evolved_teleportation_device_broken_using"
         }
     ]
 }

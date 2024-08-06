@@ -1,7 +1,7 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "smpitems:item/teleportation_device_broken"
+    "layer0": "smpitems:item/evolved_teleportation_device"
   },
   "display": {
     "thirdperson_righthand": {
