@@ -1,0 +1,301 @@
+package io.github.maliciousfiles.smpitems.teleportationdevice;
+
+import com.mojang.datafixers.util.Pair;
+import io.github.maliciousfiles.smpitems.SMPItems;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import org.apache.commons.lang3.tuple.Triple;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
+
+import java.util.*;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+
+public class TeleportationMenuHandler implements Listener {
+
+    private static final ItemStack EMPTY = SMPItems.createItemStack(new ItemStack(Material.LIGHT_GRAY_STAINED_GLASS_PANE), meta -> {
+        meta.displayName(Component.text(""));
+    });
+    private static final ItemStack FILLER = SMPItems.createItemStack(new ItemStack(Material.GRAY_STAINED_GLASS_PANE), meta -> {
+        meta.displayName(Component.text(""));
+    });
+    private static final ItemStack PREV_PAGE = SMPItems.createItemStack(new ItemStack(Material.ARROW), meta -> {
+        meta.displayName(Component.text("Previous Page")
+                .decoration(TextDecoration.ITALIC, false)
+                .color(NamedTextColor.WHITE));
+    });
+    private static final ItemStack NEXT_PAGE = SMPItems.createItemStack(new ItemStack(Material.ARROW), meta -> {
+        meta.displayName(Component.text("Next Page")
+                .decoration(TextDecoration.ITALIC, false)
+                .color(NamedTextColor.WHITE));
+    });
+    private static final ItemStack CANCEL = SMPItems.createItemStack(new ItemStack(Material.BARRIER), meta -> {
+        meta.displayName(Component.text("Cancel")
+                .decoration(TextDecoration.ITALIC, false)
+                .color(NamedTextColor.WHITE));
+    });
+
+    private static final Map<Inventory, MenuInstance> inventories = new HashMap<>();
+
+    public static void disable() {
+        inventories.keySet().forEach(Inventory::close);
+    }
+
+    public static void openMenu(TeleportationDevice device, ItemStack stack, Player player) {
+        MenuInstance menu = generateItems(device, stack, 0);
+
+        Inventory inv = Bukkit.createInventory(player, 36, Component.text("Teleportation Menu"));
+        inventories.put(inv, menu);
+        fillPage(inv, 0, menu.items);
+
+        player.openInventory(inv);
+        device.updateItem(stack);
+    }
+
+    private static MenuInstance generateItems(TeleportationDevice device, ItemStack deviceItem, int page) {
+        List<ItemStack> items = new ArrayList<>();
+
+        BiFunction<Boolean, Boolean, List<Component>> lore = (isFav, isSelected) -> {
+            List<Component> l = new ArrayList<>();
+
+            l.add(Component.empty());
+            if (!isSelected) {
+                l.add(Component.text("Left click to select")
+                        .decoration(TextDecoration.ITALIC, false)
+                        .color(NamedTextColor.GRAY));
+            }
+            l.add(Component.text("Right click to %s".formatted(isFav ? "unfavorite" : "favorite"))
+                    .decoration(TextDecoration.ITALIC, false)
+                    .color(NamedTextColor.GRAY));
+            l.add(Component.text("Shift-right click to unlink")
+                    .decoration(TextDecoration.ITALIC, false)
+                    .color(NamedTextColor.GRAY));
+
+            return l;
+        };
+
+        Map<Integer, Object> objMap = new HashMap<>();
+
+        for (UUID uuid : device.getItems()) {
+            Pair<Player, TeleportationDevice> p = TeleportationDevice.getPlayerWithItem(uuid);
+
+            ItemStack item;
+            if (p != null) {
+                item = new ItemStack(Material.PLAYER_HEAD);
+                item.editMeta(SkullMeta.class, meta -> {
+                    boolean isSelected = device.getSelected().equals(uuid);
+                    boolean isFav = device.getFavorites().contains(uuid);
+
+                    meta.displayName(Component.text(p.getFirst().getName() + (isSelected ? " ✪" : ""))
+                            .decoration(TextDecoration.ITALIC, false)
+                            .color(NamedTextColor.AQUA));
+                    meta.setOwningPlayer(p.getFirst());
+                    meta.setEnchantmentGlintOverride(isFav);
+                    meta.lore(lore.apply(isFav, isSelected));
+                });
+            } else {
+                item = new ItemStack(Material.BARRIER);
+                item.editMeta(meta -> {
+                    boolean isSelected = device.getSelected().equals(uuid);
+                    boolean isFav = device.getFavorites().contains(uuid);
+
+                    meta.displayName(Component.text("Player not found" + (isSelected ? " ✪" : ""))
+                            .decoration(TextDecoration.ITALIC, false)
+                            .color(NamedTextColor.AQUA));
+                    meta.setEnchantmentGlintOverride(isFav);
+                    meta.lore(lore.apply(isFav, isSelected));
+                });
+            }
+
+            objMap.put(items.size(), uuid);
+            items.add(item);
+        }
+
+        for (Location loc : device.getAnchors()) {
+            String name = TeleportationDevice.getAnchorName(loc);
+
+            if (name.isEmpty()) {
+                device.toggleAnchor(loc);
+                continue;
+            }
+
+            ItemStack item = new ItemStack(Material.LODESTONE);
+            item.editMeta(meta -> {
+                boolean isSelected = device.getSelected().equals(loc);
+                boolean isFav = device.getFavorites().contains(loc);
+
+                meta.displayName(Component.text(name + (isSelected ? " ✪" : ""))
+                        .color(NamedTextColor.AQUA)
+                        .append(Component.text(" (%s, %s, %s)".formatted(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()))
+                                .color(NamedTextColor.GRAY))
+                        .decoration(TextDecoration.ITALIC, false));
+                meta.setEnchantmentGlintOverride(isFav);
+                meta.lore(lore.apply(isFav, isSelected));
+            });
+
+            objMap.put(items.size(), loc);
+            items.add(item);
+        }
+
+        return new MenuInstance(deviceItem, device, page, items, objMap::get);
+    }
+
+    private static void fillPage(Inventory inv, int page, List<ItemStack> items) {
+        ItemStack[] contents = new ItemStack[36];
+
+        for (int i = 0; i < 18; i++) {
+            int idx = page * 18 + i;
+            contents[i] = idx < items.size() ? items.get(idx) : EMPTY;
+        }
+        for (int i = 18; i < 27; i++) contents[i] = FILLER;
+        for (int i = 27; i < 36; i++) contents[i] = EMPTY;
+
+        if (page > 0) contents[27] = PREV_PAGE;
+        contents[31] = CANCEL;
+        if (page < items.size()/18) contents[35] = NEXT_PAGE;
+
+        inv.setContents(contents);
+    }
+
+    @EventHandler
+    public void onClick(InventoryClickEvent evt) {
+        Inventory inv = evt.getClickedInventory();
+        if (inv == null || !inventories.containsKey(inv)) return;
+
+        evt.setCancelled(true);
+
+        MenuInstance menu = inventories.get(inv);
+
+        if (FILLER.equals(evt.getCurrentItem()) || EMPTY.equals(evt.getCurrentItem())) return;
+        else if (NEXT_PAGE.equals(evt.getCurrentItem())) {
+            menu.page++;
+            fillPage(inv, menu.page, menu.items);
+        } else if (PREV_PAGE.equals(evt.getCurrentItem())) {
+            menu.page--;
+            fillPage(inv, menu.page, menu.items);
+        } else if (CANCEL.equals(evt.getCurrentItem())) {
+            inv.close();
+            inventories.remove(inv);
+        } else {
+            boolean reload = true;
+
+            if (menu.confirms.contains(evt.getRawSlot())) {
+                menu.confirms.remove((Integer) evt.getRawSlot());
+
+                Object obj = menu.getObj(evt.getRawSlot());
+                if (obj instanceof Location loc) menu.device.toggleAnchor(loc);
+                else if (obj instanceof UUID uuid) menu.device.toggleItemLink(uuid);
+
+                menu.device.updateItem(menu.deviceItem);
+            } else {
+                if (evt.isRightClick()) {
+                    if (!evt.isShiftClick()) {
+                        Object obj = menu.getObj(evt.getRawSlot());
+
+                        if (menu.device.getFavorites().contains(obj)) {
+                            menu.device.removeFavorite(obj);
+                            menu.device.updateItem(menu.deviceItem);
+                        } else if (menu.device.getFavorites().size() < TeleportationDevice.MAX_FAV){
+                            menu.device.addFavorite(obj);
+                            menu.device.updateItem(menu.deviceItem);
+                        } else {
+                            reload = false;
+
+                            ItemStack item = evt.getCurrentItem();
+                            ItemMeta meta = item.getItemMeta();
+
+                            Component displayName = meta.displayName();
+                            List<Component> lore = meta.lore();
+
+                            meta.displayName(Component.text("Favorites list is full")
+                                    .decoration(TextDecoration.ITALIC, false)
+                                    .color(NamedTextColor.RED));
+                            meta.lore(List.of(
+                                    Component.text("Try unfavoriting another destination")
+                                            .decoration(TextDecoration.ITALIC, false)
+                                            .color(NamedTextColor.GRAY)
+                            ));
+
+                            item.setItemMeta(meta);
+
+                            Bukkit.getScheduler().runTaskLater(SMPItems.instance, () -> item.editMeta(m -> {
+                                m.displayName(displayName);
+                                m.lore(lore);
+                            }), 35);
+                        }
+                    } else {
+                        reload = false;
+
+                        ItemStack item = evt.getCurrentItem();
+                        ItemMeta meta = item.getItemMeta();
+
+                        Component displayName = meta.displayName();
+                        List<Component> lore = meta.lore();
+
+                        meta.displayName(Component.text("Are you sure?")
+                                .decoration(TextDecoration.ITALIC, false)
+                                .color(NamedTextColor.RED));
+                        meta.lore(List.of(
+                                Component.text("Click again to unlink")
+                                        .decoration(TextDecoration.ITALIC, false)
+                                        .color(NamedTextColor.GRAY)
+                        ));
+
+                        item.setItemMeta(meta);
+
+                        Bukkit.getScheduler().runTaskLater(SMPItems.instance, () -> item.editMeta(m -> {
+                            m.displayName(displayName);
+                            m.lore(lore);
+
+                            menu.confirms.remove((Integer) evt.getRawSlot());
+                        }), 35);
+
+                        menu.confirms.add(evt.getRawSlot());
+                    }
+                } else if (evt.isLeftClick()) {
+                    menu.device.select(menu.getObj(evt.getRawSlot()));
+                    menu.device.updateItem(menu.deviceItem);
+                }
+            }
+
+            if (reload) {
+                MenuInstance newMenu = generateItems(menu.device, menu.deviceItem, menu.page);
+                fillPage(inv, newMenu.page, newMenu.items);
+
+                inventories.put(inv, newMenu);
+            }
+        }
+    }
+
+    private static class MenuInstance {
+        public ItemStack deviceItem;
+        public TeleportationDevice device;
+        public int page;
+        public List<ItemStack> items;
+        public List<Integer> confirms = new ArrayList<>();
+        public Function<Integer, Object> transformer;
+
+        public MenuInstance(ItemStack deviceItem, TeleportationDevice device, int page, List<ItemStack> items, Function<Integer, Object> transformer) {
+            this.deviceItem = deviceItem;
+            this.device = device;
+            this.page = page;
+            this.items = items;
+            this.transformer = transformer;
+        }
+
+        public Object getObj(int idx) {
+            return transformer.apply(page*18+idx);
+        }
+    }
+}
