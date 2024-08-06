@@ -1,4 +1,4 @@
-# SMP Items
+![image](https://github.com/user-attachments/assets/7929c8ea-77f1-4eba-aa6b-9d6146af54ec)# SMP Items
 Various custom items, fully integrated into the game for survival use (no commands).
 &nbsp;&nbsp;&nbsp;i.e. `/home` and `/tpa` are replaced by the **Teleportation Device**
 
@@ -24,7 +24,10 @@ A [custom resource pack](https://github.com/MaliciousFiles/SMPItems/raw/main/SMP
     Base Use Time: 10
     Base Connections: 1
   ![image](https://github.com/user-attachments/assets/3830feb0-75cc-4a1f-83b7-c2fedae8dd82)
-  
+
+  #### Teleportation Anchor
+  ![image](https://github.com/user-attachments/assets/f530054c-6882-4129-b414-b997337a82d2)
+
   <details>
     <summary>&nbsp;<h3>Upgrades</h3></summary>
 
