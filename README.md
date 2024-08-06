@@ -1,23 +1,23 @@
 Various custom items, fully integrated into the game for survival use (no commands).
-&nbsp;&nbsp;&nbsp;i.e. `/home` and `/tpa` are replaced by the **Teleportation Device**
+&nbsp;&nbsp;&nbsp;i.e. `/home` and `/tpa` are replaced by the **Teleporter**
 
 A [custom resource pack](https://github.com/MaliciousFiles/SMPItems/raw/main/SMPItems%20Resource%20Pack.zip) is required to properly view the items.
 
 ## Items (+ recipes)
 <details>
-  <summary>&nbsp;<h3>Teleportation Device</h3></summary>
+  <summary>&nbsp;<h3>Teleporter</h3></summary>
   
   All recipes are shown in the recipe book, but some recipes require multiple of an item.<br>
 
   Allows you to teleport to either a linked anchor or a linked player, up to a limited range. Limited number of anchor connections, but unlimited players. Can be repaired in an anvil using ender pearls. Taking damage cancels teleport.
-  #### Basic Teleportation Device
+  #### Teleporter
     Base Range: 250
     Base Uses: 5
     Base Use Time: 10
     Base Connections: 1
   ![image](https://github.com/user-attachments/assets/f9024200-4f2a-46f4-9ef1-5481478e3dbb)
   
-  #### Evolved Teleportation Device
+  #### Evolved Teleporter
     Base Range: 750
     Base Uses: 20
     Base Use Time: 10

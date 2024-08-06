@@ -5,6 +5,7 @@ import io.github.maliciousfiles.smpitems.SMPItems;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -28,7 +29,7 @@ public class TeleportationDevice implements Cloneable {
 
     public static final TeleportationDevice BASE = new TeleportationDevice(
             250, 5, 1, 10, false,
-            Component.text("Teleportation Device")
+            Component.text("Teleporter")
                     .color(NamedTextColor.AQUA)
                     .decoration(TextDecoration.ITALIC, false)
                     .decorate(TextDecoration.BOLD));
@@ -119,6 +120,7 @@ public class TeleportationDevice implements Cloneable {
     public boolean isEvolved() { return finalUpgradeable; }
     public List<Location> getAnchors() { return List.copyOf(anchors); }
     public List<UUID> getItems() { return List.copyOf(items); }
+    public boolean hasAnyUpgrade() { return !upgrades.isEmpty(); }
 
     public boolean hasUpgrade(UpgradeType upgrade) {
         return upgrades.contains(upgrade);
@@ -137,10 +139,13 @@ public class TeleportationDevice implements Cloneable {
         evolved.range += 500;
         evolved.uses += 15;
         evolved.finalUpgradeable = true;
-        evolved.name = Component.text("Evolved Teleportation Device")
-                .color(NamedTextColor.AQUA)
-                .decoration(TextDecoration.ITALIC, false)
-                .decorate(TextDecoration.BOLD);
+
+        if (PlainTextComponentSerializer.plainText().serialize(evolved.name).equals("Teleporter")) {
+            evolved.name = Component.text("Evolved Teleporter")
+                    .color(NamedTextColor.AQUA)
+                    .decoration(TextDecoration.ITALIC, false)
+                    .decorate(TextDecoration.BOLD);
+        }
 
         return evolved;
     }

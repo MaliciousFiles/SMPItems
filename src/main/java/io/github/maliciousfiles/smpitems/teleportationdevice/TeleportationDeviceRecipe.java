@@ -122,7 +122,7 @@ public class TeleportationDeviceRecipe {
                         TeleportationDevice device = TeleportationDevice.fromItem(contents[j]);
                         if (device == null) continue;
 
-                        if (validInput.test(device)) {
+                        if (!device.hasAnyUpgrade() && validInput.test(device)) {
                             amounts[j] = 1;
 
                             inv.setItem(i+1, contents[j].clone());
@@ -243,17 +243,5 @@ public class TeleportationDeviceRecipe {
                 }
             });
         }
-
-        /*@EventHandler
-        public void onCraft(CraftItemEvent evt) {
-            if (!isRecipe(evt.getInventory())) return;
-
-            for (int i : rawRecipe.keySet()) {
-                ItemStack item = evt.getInventory().getItem(i);
-                if (item != null && item.getType().equals(rawRecipe.get(i).getFirst())) {
-                    item.setAmount(item.getAmount() - rawRecipe.get(i).getSecond()+1);
-                }
-            }
-        }*/
     }
 }
