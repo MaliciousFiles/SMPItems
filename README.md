@@ -9,7 +9,7 @@ A [custom resource pack](https://github.com/MaliciousFiles/SMPItems/raw/main/SMP
   
   All recipes are shown in the recipe book, but some recipes require multiple of an item.<br>
 
-  Allows you to teleport to either a linked anchor or a linked player, up to a limited range. Limited number of anchor connections, but unlimited players. Can be repaired in an anvil using ender pearls. Taking damage cancels teleport.
+  Allows you to teleport to either a linked anchor or a linked teleporter (if held by a player), up to a limited range. Limited number of anchor connections, but unlimited other teleporters. Teleporters can be linked by crafting them together. Can be repaired in an anvil using ender pearls. Taking damage cancels teleport.
   #### Teleporter
     Base Range: 250
     Base Uses: 5
@@ -30,7 +30,7 @@ A [custom resource pack](https://github.com/MaliciousFiles/SMPItems/raw/main/SMP
   <details>
     <summary>&nbsp;<h3>Upgrades</h3></summary>
 
-  Can be applied up to twice to both base and evolved devices.
+  Can be applied up to twice to both base and evolved teleporters.
   ### Range
     Range: +500
   ![image](https://github.com/user-attachments/assets/cb22d8c6-83d1-4467-a542-8f0ceed2d7a7)
@@ -50,7 +50,7 @@ A [custom resource pack](https://github.com/MaliciousFiles/SMPItems/raw/main/SMP
   <details>
     <summary>&nbsp;<h3>Final Upgrades</h3></summary>
 
-  Can be applied once to evolved devices which have all of the normal upgrade variant.
+  Can be applied once to evolved teleporters which have all of the normal upgrade variant.
   ### Range
     Range: infinite
   ![image](https://github.com/user-attachments/assets/0049e1fd-9456-4b19-b472-095b3bb0cf40)
