@@ -23,15 +23,14 @@ import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
-import org.bukkit.inventory.CraftingRecipe;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.ShapedRecipe;
+import org.bukkit.inventory.*;
 import org.bukkit.inventory.meta.Damageable;
+import org.bukkit.util.Vector;
 
 import java.util.*;
 
 public class TeleportationDeviceHandler implements Listener {
-    public static final ItemStack ANCHOR = SMPItems.createItemStack(new ItemStack(Material.LODESTONE), meta -> {
+    public static final ItemStack ANCHOR = SMPItems.createItemStack(TeleportationDevice.initUUID(new ItemStack(Material.LODESTONE)), meta -> {
         meta.displayName(Component.text("Teleportation Anchor")
                 .decoration(TextDecoration.ITALIC, false)
                 .color(NamedTextColor.AQUA));
@@ -58,16 +57,16 @@ public class TeleportationDeviceHandler implements Listener {
     static {
         SMPItems.addRecipe(BASIC_DEVICE_RECIPE);
 
-        SMPItems.addItem("teleportation_anchor", ANCHOR);
-        SMPItems.addItem("teleporter", TeleportationDevice.initUUID(TeleportationDevice.BASE.asItem()));
-        SMPItems.addItem("evolved_teleporter", TeleportationDevice.initUUID(TeleportationDevice.BASE.evolved().asItem()));
+        SMPItems.addItem("teleportation_anchor", () -> ANCHOR);
+        SMPItems.addItem("teleporter", () -> TeleportationDevice.initUUID(TeleportationDevice.BASE.asItem()));
+        SMPItems.addItem("evolved_teleporter", () -> TeleportationDevice.initUUID(TeleportationDevice.BASE.evolved().asItem()));
     }
 
     public static final TeleportationDeviceRecipe EVOLVED_DEVICE_RECIPE = new TeleportationDeviceRecipe(
             device -> !device.isEvolved(),
             device -> !device.isEvolved(),
             device -> device.evolved().asItem(),
-            TeleportationDevice.BASE.asItem(),
+            new RecipeChoice.ExactChoice(TeleportationDevice.BASE.asItem()),
             SMPItems.createItemStack(TeleportationDevice.BASE.evolved().asItem(), meta -> {
                 meta.lore(List.of(
                         Component.empty(),
@@ -94,9 +93,9 @@ public class TeleportationDeviceHandler implements Listener {
 
     public static final TeleportationDeviceRecipe ANCHOR_RECIPE = new TeleportationDeviceRecipe(
             device -> !device.isEvolved(),
-            device -> !device.isEvolved(),
+            device -> !device.isEvolved() && !device.hasAnyUpgrade(),
             device -> ANCHOR.clone(),
-            TeleportationDevice.BASE.asItem(),
+            new RecipeChoice.ExactChoice(TeleportationDevice.BASE.asItem()),
             ANCHOR.clone(),
             SMPItems.key("teleportation_anchor"),
             List.of(
@@ -126,27 +125,32 @@ public class TeleportationDeviceHandler implements Listener {
     }
 
     @EventHandler
-    public void postCraft(CraftItemEvent evt) {
-        if (evt.getInventory().getResult().equals(LINK_DEVICES_ITEM)) {
-            evt.setCurrentItem(ItemStack.empty());
+    public void postCraft(InventoryClickEvent evt) {
+        if (!(evt.getInventory() instanceof CraftingInventory inv) ||
+                evt.getSlotType() != InventoryType.SlotType.RESULT ||
+                !LINK_DEVICES_ITEM.equals(evt.getCurrentItem())) return;
+        evt.setCancelled(true);
+        inv.setResult(ItemStack.empty());
 
-            Map<TeleportationDevice, ItemStack> devices = new HashMap<>();
-            for (ItemStack item : evt.getInventory().getMatrix()) {
-                TeleportationDevice device = TeleportationDevice.fromItem(item);
-                if (device != null) devices.put(device, item);
-            }
-
-            for (TeleportationDevice d1 : devices.keySet()) {
-                for (TeleportationDevice d2 : devices.keySet()) {
-                    if (d1 == d2) continue;
-
-                    d1.setLinked(d2.getId());
-                }
-
-                d1.updateItem(devices.get(d1));
-            }
+        Map<TeleportationDevice, ItemStack> devices = new HashMap<>();
+        for (ItemStack item : inv.getMatrix()) {
+            TeleportationDevice device = TeleportationDevice.fromItem(item);
+            if (device != null) devices.put(device, item);
         }
 
+        for (TeleportationDevice d1 : devices.keySet()) {
+            for (TeleportationDevice d2 : devices.keySet()) {
+                if (d1 == d2) continue;
+
+                d1.setLinked(d2.getId());
+            }
+
+            d1.updateItem(devices.get(d1));
+        }
+    }
+
+    @EventHandler
+    public void postCraft(CraftItemEvent evt) {
         if (evt.getRecipe() instanceof CraftingRecipe cr && cr.getKey().equals(BASIC_DEVICE_RECIPE.getKey())) {
             Bukkit.getScheduler().runTask(SMPItems.instance, () -> {
                 for (ItemStack item : evt.getWhoClicked().getInventory().getContents()) {
@@ -159,11 +163,13 @@ public class TeleportationDeviceHandler implements Listener {
 
     @EventHandler
     public void onAnvil(PrepareAnvilEvent evt) {
-        boolean isAnchor = ANCHOR.equals(evt.getInventory().getFirstItem());
+        boolean isAnchor = TeleportationDevice.isAnchor(evt.getInventory().getFirstItem());
 
         TeleportationDevice device;
         if ((device = TeleportationDevice.fromItem(evt.getInventory().getFirstItem())) != null || isAnchor) {
-            if (evt.getInventory().getSecondItem() != null && (isAnchor || !evt.getInventory().getSecondItem().getType().equals(Material.ENDER_PEARL))) {
+            if (evt.getInventory().getSecondItem() != null &&
+                    (isAnchor || !evt.getInventory().getSecondItem().getType().equals(Material.ENDER_PEARL) ||
+                            ((Damageable) evt.getInventory().getFirstItem().getItemMeta()).getDamage() == 0)) {
                 evt.setResult(null);
                 return;
             }
@@ -206,14 +212,14 @@ public class TeleportationDeviceHandler implements Listener {
             } else if (!renaming[0]) return;
 
             evt.getInventory().setRepairCost((renaming[0] ? 1 : 0) + healing[0]);
-            device.withName(evt.getResult().getItemMeta().displayName()).updateItem(evt.getResult());
+            if (device != null) device.withName(evt.getResult().getItemMeta().displayName()).updateItem(evt.getResult());
         }
     }
 
     // ANCHOR FUNCTIONALITY
     @EventHandler
     public void onPlace(BlockPlaceEvent evt) {
-        if (evt.getItemInHand().isSimilar(ANCHOR)) {
+        if (TeleportationDevice.isAnchor(evt.getItemInHand())) {
             TeleportationDevice.setAnchor(evt.getBlock(), PlainTextComponentSerializer.plainText()
                     .serialize(evt.getItemInHand().getItemMeta().displayName()));
         }
@@ -249,7 +255,7 @@ public class TeleportationDeviceHandler implements Listener {
 
     }
 
-    private static boolean checkValidDestination(TeleportationDevice device, ItemStack item, Player player, boolean checkRange) {
+    private static boolean checkValidDestination(TeleportationDevice device, ItemStack item, Player player, boolean checkRange, boolean showParticles) {
         ValidationAction action = validateSelected(device, device.getSelected());
         if (action != ValidationAction.NONE) {
             String msg;
@@ -272,28 +278,46 @@ public class TeleportationDeviceHandler implements Listener {
             player.sendActionBar(Component.text("No destination selected").color(NamedTextColor.RED));
             return false;
         }
-        if (checkRange) {
-            if (device.getSelected() instanceof Location loc) {
-                return checkLocs(device, player, player.getLocation(), loc);
-            } else if (device.getSelected() instanceof UUID uuid) {
-                return checkLocs(device, player, player.getLocation(), TeleportationDevice.getPlayerWithItem(uuid).getFirst().getLocation());
+
+        Location destLoc = null;
+        if (device.getSelected() instanceof Location loc) {
+            destLoc = loc.clone().add(0.5, 0, 0.5);
+        } else if (device.getSelected() instanceof UUID uuid) {
+            destLoc = TeleportationDevice.getPlayerWithItem(uuid).getFirst().getLocation();
+        }
+
+        if (showParticles) {
+            if (player.getLocation().getWorld().equals(destLoc.getWorld())) {
+                Vector direction = destLoc.toVector().subtract(player.getLocation().toVector()).normalize();
+
+                for (float dist = 0.6f; dist < 2.4f; dist += 0.3f) {
+                    player.spawnParticle(Particle.END_ROD, player.getLocation().add(0,1.3,0)
+                                    .add(direction.clone().multiply(dist)),
+                            1, 0, 0, 0, 0);
+                }
             }
         }
+
+        if (checkRange) return checkLocs(device, player, player.getLocation(), destLoc);
 
         return true;
     }
 
     private static void setActionBar(Object selected, Player player) {
-        player.sendActionBar(selected instanceof Location loc ?
-                Component.text(TeleportationDevice.getAnchorName(loc))
-                        .color(NamedTextColor.AQUA)
-                        .append(Component.text(" (%s, %s, %s)"
-                                        .formatted(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()))
-                                .color(NamedTextColor.GRAY)) :
-                selected instanceof UUID uuid ?
-                        Component.text(TeleportationDevice.getPlayerWithItem(uuid).getFirst().getName())
-                                .color(NamedTextColor.AQUA) :
-                        Component.empty());
+        Component bar = Component.empty();
+        if (selected instanceof Location loc) {
+            String name = TeleportationDevice.getAnchorName(loc);
+            bar = Component.text(name, NamedTextColor.AQUA);
+
+            if (!name.equals("Teleportation Anchor")) {
+                bar = bar.append(Component.text(" (%s, %s, %s)"
+                        .formatted(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()), NamedTextColor.GRAY));
+            }
+        } else if (selected instanceof UUID uuid) {
+            bar = Component.text(TeleportationDevice.getPlayerWithItem(uuid).getFirst().getName(), NamedTextColor.AQUA);
+        }
+
+        player.sendActionBar(bar);
     }
 
     // DEVICE FUNCTIONALITY
@@ -335,7 +359,7 @@ public class TeleportationDeviceHandler implements Listener {
             return;
         }
 
-        if (!checkValidDestination(device, evt.getItem(), evt.getPlayer(), true)) {
+        if (!checkValidDestination(device, evt.getItem(), evt.getPlayer(), true, true)) {
             evt.setCancelled(true);
             return;
         }
@@ -461,7 +485,7 @@ public class TeleportationDeviceHandler implements Listener {
 
             device.select(fav).updateItem(evt.getItem());
 
-            if (!checkValidDestination(device, evt.getItem(), evt.getPlayer(), false)) return;
+            if (!checkValidDestination(device, evt.getItem(), evt.getPlayer(), false, true)) return;
             setActionBar(fav, evt.getPlayer());
         }
     }
@@ -483,7 +507,7 @@ public class TeleportationDeviceHandler implements Listener {
             return;
         }
 
-        if (!checkValidDestination(device, evt.getItem(), evt.getPlayer(), true)) return;
+        if (!checkValidDestination(device, evt.getItem(), evt.getPlayer(), true, false)) return;
 
         evt.getPlayer().setCooldown(evt.getItem().getType(), 10);
         evt.getPlayer().getWorld().spawnParticle(Particle.REVERSE_PORTAL,
@@ -506,8 +530,7 @@ public class TeleportationDeviceHandler implements Listener {
         if (evt.getPlayer().getGameMode() != GameMode.CREATIVE) {
             ItemStack item = evt.getPlayer().getInventory().getItem(evt.getHand());
 
-            item.editMeta(Damageable.class, meta -> meta.setDamage(meta.getDamage() + 1));
-            device.updateItem(item);
+            device.damage(1).updateItem(item);
         }
     }
 }

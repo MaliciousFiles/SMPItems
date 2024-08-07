@@ -29,6 +29,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public final class SMPItems extends JavaPlugin implements Listener {
 
@@ -47,8 +48,8 @@ public final class SMPItems extends JavaPlugin implements Listener {
         Bukkit.addRecipe(recipe);
     }
 
-    private static final Map<NamespacedKey, ItemStack> customItems = new HashMap<>();
-    public static void addItem(String id, ItemStack item) {
+    private static final Map<NamespacedKey, Supplier<ItemStack>> customItems = new HashMap<>();
+    public static void addItem(String id, Supplier<ItemStack> item) {
         customItems.put(key(id), item);
     }
 
@@ -78,6 +79,8 @@ public final class SMPItems extends JavaPlugin implements Listener {
                     .decorate(TextDecoration.UNDERLINED)
                     .color(NamedTextColor.BLUE)
                     .clickEvent(ClickEvent.openUrl("https://github.com/MaliciousFiles/SMPItems/blob/main/README.md")));
+            sender.sendMessage(Component.text("All recipes are in the in-game recipe browser (though don't show as craftable)")
+                    .color(NamedTextColor.GRAY));
         } else if (command.getName().equalsIgnoreCase("smpitem")) {
             if (!(sender instanceof Player player)) {
                 sender.sendMessage(Component.text("Command can only be used by players", NamedTextColor.RED));
@@ -85,7 +88,7 @@ public final class SMPItems extends JavaPlugin implements Listener {
                 sender.sendMessage(Component.text("Invalid item", NamedTextColor.RED));
             } else {
                 String input = args[0].toLowerCase();
-                ItemStack item = customItems.get(input.startsWith("smpitems:") ? key(input.substring(9)) : key(input));
+                ItemStack item = customItems.get(input.startsWith("smpitems:") ? key(input.substring(9)) : key(input)).get();
                 if (item == null) {
                     sender.sendMessage(Component.text("Invalid item", NamedTextColor.RED));
                 } else {
@@ -99,7 +102,7 @@ public final class SMPItems extends JavaPlugin implements Listener {
 
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        if (!command.getName().equalsIgnoreCase("smpitem")) return List.of();
+        if (!command.getName().equalsIgnoreCase("smpitem") || args.length > 1) return List.of();
 
         return customItems.keySet().stream()
                 .map(NamespacedKey::toString)

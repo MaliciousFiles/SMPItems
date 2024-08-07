@@ -13,6 +13,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.RecipeChoice;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -66,6 +67,8 @@ public class TeleportationDevice implements Cloneable {
     private List<UUID> items = new ArrayList<>();
     private List<UpgradeType> upgrades = new ArrayList<>();
 
+    private int damage = 0;
+
     public static final Object NO_SELECTION = new UUID(0, 0);
     public static final int MAX_FAV = 3;
     private List<Object> favorites = new ArrayList<>();
@@ -92,6 +95,7 @@ public class TeleportationDevice implements Cloneable {
     public static TeleportationDevice fromItem(ItemStack item) {
         if (item == null) return null;
         if (!(item.getItemMeta() instanceof Damageable meta)) return null;
+        if (item.getType() != BASE.asItem().getType()) return null;
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         if (pdc.get(ID_KEY, UUID_TYPE) == null) return null;
 
@@ -110,6 +114,7 @@ public class TeleportationDevice implements Cloneable {
         device.upgrades = new ArrayList<>(pdc.get(UPGRADES_KEY, UPGRADE_LIST));
         device.favorites = new ArrayList<>(pdc.get(FAVORITES_KEY, SELECTION_LIST));
         device.selected = pdc.getOrDefault(SELECTED_KEY, SELECTION_TYPE, NO_SELECTION);
+        device.damage = meta.getDamage();
 
         return device;
     }
@@ -161,6 +166,13 @@ public class TeleportationDevice implements Cloneable {
         for (UpgradeType upgrade : upgrades) upgrade.apply(device);
         return device;
     }
+
+    public TeleportationDevice damage(int damage) {
+        this.damage += damage;
+
+        return this;
+    }
+
 
     public TeleportationDevice toggleAnchor(Location location) {
         if (anchors.contains(location)) {
@@ -241,6 +253,7 @@ public class TeleportationDevice implements Cloneable {
         stack.editMeta(Damageable.class, meta -> {
             meta.setMaxStackSize(1);
             meta.setMaxDamage(uses == -1 ? null : uses);
+            meta.setDamage(damage);
             meta.displayName(name);
 
             int modelDataMod = (uses != -1 && meta.getDamage() >= uses ? 1 : 0) + (isEvolved() ? 2 : 0);
@@ -285,7 +298,7 @@ public class TeleportationDevice implements Cloneable {
                             .append(Component.text(getUpgradeCompletion(UpgradeType.CONNECTIONS, UpgradeType.FINAL_CONNECTIONS)))
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY),
-                    Component.text("Linked: ")
+                    Component.text("Links: ")
                             .append(Component.text(items.size(), NamedTextColor.WHITE))
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY),
@@ -342,6 +355,10 @@ public class TeleportationDevice implements Cloneable {
         pdc.set(ANCHORS_KEY, LOC_LIST, anchors);
     }
 
+    public static boolean isAnchor(ItemStack item) {
+        return item != null && item.getType().equals(TeleportationDeviceHandler.ANCHOR.getType()) && item.getItemMeta().getPersistentDataContainer().has(ID_KEY);
+    }
+
     public static Pair<Player, TeleportationDevice> getPlayerWithItem(UUID item) {
         return Bukkit.getOnlinePlayers().stream().map(p-> {
             TeleportationDevice device = Arrays.stream(p.getInventory().getContents())
@@ -386,12 +403,12 @@ public class TeleportationDevice implements Cloneable {
                 Pair.of(Material.IRON_BLOCK, 8), Pair.of(Material.EMERALD_BLOCK, 4), Pair.of(Material.IRON_BLOCK, 8),
                 Pair.of(Material.EMERALD_BLOCK, 4),         Pair.of(null, 0),        Pair.of(Material.EMERALD_BLOCK, 4),
                 Pair.of(Material.IRON_BLOCK, 8), Pair.of(Material.EMERALD_BLOCK, 4), Pair.of(Material.IRON_BLOCK, 8)
-        ), device -> device.uses += 10, Pair.of("Uses: ", "+10")),
+        ), device -> { device.uses += 10; device.damage = 0; }, Pair.of("Uses: ", "+10"), Pair.of("Fully heal teleporter", "")),
         FINAL_USES(USES, List.of(
                 Pair.of(Material.EMERALD_BLOCK, 8), Pair.of(Material.ENCHANTED_GOLDEN_APPLE, 1), Pair.of(Material.EMERALD_BLOCK, 8),
                 Pair.of(Material.OMINOUS_TRIAL_KEY, 1),         Pair.of(null, 0),            Pair.of(Material.OMINOUS_TRIAL_KEY, 1),
                 Pair.of(Material.DRAGON_BREATH, 1), Pair.of(Material.NETHERITE_INGOT, 1), Pair.of(Material.DRAGON_BREATH, 1)
-        ), device -> device.uses = -1, Pair.of("Uses: ", "∞"));
+        ), device -> { device.uses = -1; device.damage = 0; }, Pair.of("Uses: ", "∞"), Pair.of("Fully heal teleporter", ""));
 
         public static void initAll() {
             for (UpgradeType value : values()) value.init();
@@ -448,7 +465,8 @@ public class TeleportationDevice implements Cloneable {
                             (prereq == null || device.isEvolved() && device.upgrades.stream()
                                     .filter(upgrade -> upgrade == prereq).count() == prereq.limit),
                     device -> device.withUpgrades(this).asItem(),
-                    prereq == null ? BASE.asItem() : BASE.evolved().withUpgrades(inputUpgrades).asItem(),
+                    prereq == null ? new RecipeChoice.ExactChoice(BASE.asItem(), BASE.evolved().asItem()) :
+                            new RecipeChoice.ExactChoice(BASE.evolved().withUpgrades(inputUpgrades).asItem()),
                     defaultOutput,
                     SMPItems.key("teleportation_%s_upgrade".formatted(name().toLowerCase())),
                     rawRecipe);

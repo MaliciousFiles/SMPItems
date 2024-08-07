@@ -4,19 +4,9 @@ import com.destroystokyo.paper.event.player.PlayerRecipeBookClickEvent;
 import com.mojang.datafixers.util.Pair;
 import io.github.maliciousfiles.smpitems.SMPItems;
 import io.papermc.paper.event.player.PlayerInventorySlotChangeEvent;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextColor;
-import net.kyori.adventure.text.format.TextDecoration;
-import net.minecraft.network.protocol.game.ClientboundBundlePacket;
 import net.minecraft.network.protocol.game.ClientboundPlaceGhostRecipePacket;
-import net.minecraft.network.protocol.game.ClientboundRecipePacket;
-import net.minecraft.network.protocol.game.ClientboundUpdateRecipesPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.CraftingMenu;
-import net.minecraft.world.inventory.RecipeBookMenu;
-import net.minecraft.world.inventory.TransientCraftingContainer;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -24,20 +14,18 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.craftbukkit.CraftServer;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.craftbukkit.inventory.CraftInventoryCrafting;
-import org.bukkit.craftbukkit.inventory.CraftItemStack;
-import org.bukkit.craftbukkit.inventory.CraftRecipe;
-import org.bukkit.craftbukkit.inventory.CraftShapedRecipe;
 import org.bukkit.craftbukkit.util.CraftNamespacedKey;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.*;
-import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.inventory.*;
-import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.util.Vector;
 
-import java.util.*;
-import java.util.function.BiFunction;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -54,7 +42,7 @@ public class TeleportationDeviceRecipe {
     public TeleportationDeviceRecipe(Predicate<TeleportationDevice> discoverRecipe,
                                      Predicate<TeleportationDevice> validInput,
                                      Function<TeleportationDevice, ItemStack> transformer,
-                                     ItemStack defaultInput,
+                                     RecipeChoice defaultInput,
                                      ItemStack defaultOutput,
                                      NamespacedKey key,
                                      List<Pair<Material, Integer>> recipe) {
@@ -125,7 +113,7 @@ public class TeleportationDeviceRecipe {
                         TeleportationDevice device = TeleportationDevice.fromItem(contents[j]);
                         if (device == null) continue;
 
-                        if (!device.hasAnyUpgrade() && validInput.test(device)) {
+                        if (validInput.test(device)) {
                             amounts[j] = 1;
 
                             inv.setItem(i+1, contents[j].clone());
@@ -146,7 +134,7 @@ public class TeleportationDeviceRecipe {
                 for (int k = 0; k < input.getSecond(); k++) {
                     for (; j < contents.length; j++) {
                         ItemStack invItem = contents[j];
-                        if (invItem != null && invItem.getType() == input.getFirst()) {
+                        if (invItem != null && invItem.getType() == input.getFirst() && invItem.getAmount() - amounts[j] > 0) {
                             int amount = Math.min(invItem.getAmount() - amounts[j], input.getSecond() - k);
                             amounts[j] += amount;
 
