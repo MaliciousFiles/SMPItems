@@ -11,15 +11,15 @@ A [custom resource pack](https://github.com/MaliciousFiles/SMPItems/raw/main/SMP
 
   Allows you to teleport to either a linked anchor or a linked teleporter (if held by a player), up to a limited range. Limited number of anchor connections, but unlimited other teleporters. Teleporters can be linked by crafting them together. Can be repaired in an anvil using ender pearls. Taking damage cancels teleport.
   #### Teleporter
-    Base Range: 250
+    Base Range: 500
     Base Uses: 5
     Base Use Time: 10
     Base Connections: 1
   ![image](https://github.com/user-attachments/assets/f9024200-4f2a-46f4-9ef1-5481478e3dbb)
   
   #### Evolved Teleporter
-    Base Range: 750
-    Base Uses: 20
+    Base Range: 1000
+    Base Uses: 10
     Base Use Time: 10
     Base Connections: 1
   ![image](https://github.com/user-attachments/assets/3830feb0-75cc-4a1f-83b7-c2fedae8dd82)
@@ -32,7 +32,7 @@ A [custom resource pack](https://github.com/MaliciousFiles/SMPItems/raw/main/SMP
 
   Can be applied up to twice to both base and evolved teleporters.
   ### Range
-    Range: +500
+    Range: +750
   ![image](https://github.com/user-attachments/assets/cb22d8c6-83d1-4467-a542-8f0ceed2d7a7)
 
   ### Use Time
@@ -44,7 +44,7 @@ A [custom resource pack](https://github.com/MaliciousFiles/SMPItems/raw/main/SMP
   ![image](https://github.com/user-attachments/assets/8e76bf27-adcc-4725-8376-7b2c23908915)
 
   ### Uses
-    Uses: +10
+    Uses: +5
   ![image](https://github.com/user-attachments/assets/0b5e1310-f7e0-4966-8497-a852f89a7c20)
   </details>
   <details>

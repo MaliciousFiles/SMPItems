@@ -12,6 +12,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.RecipeChoice;
 import org.bukkit.inventory.meta.Damageable;
@@ -149,7 +150,7 @@ public class TeleportationDevice implements Cloneable {
     public TeleportationDevice evolved() {
         TeleportationDevice evolved = clone();
         evolved.range += 500;
-        evolved.uses += 15;
+        evolved.uses += 5;
         evolved.finalUpgradeable = true;
 
         if (PlainTextComponentSerializer.plainText().serialize(evolved.name).equals("Teleporter")) {
@@ -253,11 +254,13 @@ public class TeleportationDevice implements Cloneable {
         return stack;
     }
 
-    private String getUpgradeCompletion(UpgradeType... upgrades) {
-        int num = Arrays.stream(upgrades).mapToInt(u -> (int) this.upgrades.stream().filter(u::equals).count()).sum();
-        int max = Arrays.stream(upgrades).mapToInt(u -> u.limit).sum();
+    private String getUpgradeCompletion(boolean showMax, UpgradeType... upgrades) {
+        int num = Arrays.stream(upgrades).filter(Objects::nonNull)
+                .mapToInt(u -> (int) this.upgrades.stream().filter(u::equals).count()).sum();
+        int max = Arrays.stream(upgrades).filter(Objects::nonNull)
+                .mapToInt(u -> u.limit).sum();
 
-        return num == max ? " (max)" : " (%s/%s upgrades)".formatted(num, max);
+        return showMax && num == max ? " (max)" : " (%s/%s upgrades)".formatted(num, max);
     }
 
     public void updateItem(ItemStack stack) {
@@ -285,31 +288,27 @@ public class TeleportationDevice implements Cloneable {
             if (selected != null) pdc.set(SELECTED_KEY, SELECTION_TYPE, selected);
 
             meta.lore(List.of(
-                    Component.text("Shift-right click to cycle favorites (hold for menu)")
+                    Component.text("Shift-click for favorites (hold for menu)")
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY),
-                    Component.text("Can be refueled with ender pearls in an anvil")
+                    Component.text("Refuel with ender pearls in an anvil")
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY),
                     Component.empty(),
-                    Component.text("Can Take Final Upgrades: ")
-                            .append(Component.text(finalUpgradeable ? "yes" : "no", NamedTextColor.WHITE))
-                            .decoration(TextDecoration.ITALIC, false)
-                            .color(NamedTextColor.GRAY),
                     Component.text("Range: ")
                             .append(Component.text(range == -1 ? "∞" : String.valueOf(range), NamedTextColor.WHITE))
-                            .append(Component.text(getUpgradeCompletion(UpgradeType.RANGE, UpgradeType.FINAL_RANGE)))
+                            .append(Component.text(getUpgradeCompletion(isEvolved(), UpgradeType.RANGE, isEvolved() ? UpgradeType.FINAL_RANGE : null)))
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY),
                     Component.text("Use Time: ")
                             .append(Component.text(useTime+"s", NamedTextColor.WHITE))
-                            .append(Component.text(getUpgradeCompletion(UpgradeType.USE_TIME, UpgradeType.FINAL_USE_TIME)))
+                            .append(Component.text(getUpgradeCompletion(isEvolved(), UpgradeType.USE_TIME, isEvolved() ? UpgradeType.FINAL_USE_TIME : null)))
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY),
                     Component.empty(),
                     Component.text("Anchors: ")
                             .append(Component.text(anchors.size()+(connections == -1 ? "" : "/"+connections), NamedTextColor.WHITE))
-                            .append(Component.text(getUpgradeCompletion(UpgradeType.CONNECTIONS, UpgradeType.FINAL_CONNECTIONS)))
+                            .append(Component.text(getUpgradeCompletion(isEvolved(), UpgradeType.CONNECTIONS, isEvolved() ? UpgradeType.FINAL_CONNECTIONS : null)))
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY),
                     Component.text("Links: ")
@@ -319,7 +318,7 @@ public class TeleportationDevice implements Cloneable {
                     Component.empty(),
                     Component.text("Uses: ")
                             .append(Component.text((uses == -1 ? "∞" : "%s/%s".formatted(uses-meta.getDamage(), uses)), NamedTextColor.WHITE))
-                            .append(Component.text(getUpgradeCompletion(UpgradeType.USES, UpgradeType.FINAL_USES)))
+                            .append(Component.text(getUpgradeCompletion(isEvolved(), UpgradeType.USES, isEvolved() ? UpgradeType.FINAL_USES : null)))
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY)
             ));
@@ -356,19 +355,27 @@ public class TeleportationDevice implements Cloneable {
         return "%s/%s/%s".formatted(Math.floorMod(loc.getBlockX(), 16), Math.floorMod(loc.getBlockY(), 16), Math.floorMod(loc.getBlockZ(), 16));
     }
 
-    public static String getAnchorName(Location loc) {
-        return loc.getBlock().getChunk().getPersistentDataContainer().getOrDefault(SMPItems.key(locToString(loc)), PersistentDataType.STRING, "");
+    public static TextDisplay getAnchorDisplay(Location loc) {
+        UUID id = loc.getBlock().getChunk().getPersistentDataContainer().getOrDefault(SMPItems.key(locToString(loc)), UUID_TYPE, (UUID) NO_SELECTION);
+        return id.equals(NO_SELECTION) ? null : (TextDisplay) loc.getWorld().getEntity(id);
     }
 
-    public static void setAnchor(Block block, String name) {
+    public static String getAnchorName(Location loc) {
+        TextDisplay display = getAnchorDisplay(loc);
+        return display == null ? "" : PlainTextComponentSerializer.plainText().serialize(display.text());
+    }
+
+    // display = null to remove
+    public static void setAnchor(Block block, UUID display) {
         PersistentDataContainer pdc = block.getChunk().getPersistentDataContainer();
 
         List<Location> anchors = new ArrayList<>(pdc.getOrDefault(ANCHORS_KEY, LOC_LIST, List.of()));
-        if (name != null) {
+        if (display != null) {
             anchors.add(block.getLocation());
-            pdc.set(SMPItems.key(locToString(block.getLocation())), PersistentDataType.STRING, name);
+            pdc.set(SMPItems.key(locToString(block.getLocation())), UUID_TYPE, display);
         } else {
             anchors.remove(block.getLocation());
+            getAnchorDisplay(block.getLocation()).remove();
             pdc.remove(SMPItems.key(locToString(block.getLocation())));
         }
 
@@ -393,7 +400,7 @@ public class TeleportationDevice implements Cloneable {
                 Pair.of(Material.LAPIS_BLOCK, 2), Pair.of(Material.GOLD_BLOCK, 2), Pair.of(Material.LAPIS_BLOCK, 2),
                 Pair.of(Material.GOLD_BLOCK, 2),         Pair.of(null, 0),         Pair.of(Material.GOLD_BLOCK, 2),
                 Pair.of(Material.LAPIS_BLOCK, 2), Pair.of(Material.GOLD_BLOCK, 2), Pair.of(Material.LAPIS_BLOCK, 2)
-        ), device -> device.range += 500, Pair.of("Range: ", "+500")),
+        ), device -> device.range += 750, Pair.of("Range: ", "+750")),
         FINAL_RANGE(RANGE, List.of(
                 Pair.of(Material.GOLD_BLOCK, 1), Pair.of(Material.NETHERITE_INGOT, 1), Pair.of(Material.GOLD_BLOCK, 1),
                 Pair.of(Material.END_CRYSTAL, 1),         Pair.of(null, 0),            Pair.of(Material.END_CRYSTAL, 1),
@@ -423,12 +430,12 @@ public class TeleportationDevice implements Cloneable {
                 Pair.of(Material.IRON_BLOCK, 8), Pair.of(Material.EMERALD_BLOCK, 4), Pair.of(Material.IRON_BLOCK, 8),
                 Pair.of(Material.EMERALD_BLOCK, 4),         Pair.of(null, 0),        Pair.of(Material.EMERALD_BLOCK, 4),
                 Pair.of(Material.IRON_BLOCK, 8), Pair.of(Material.EMERALD_BLOCK, 4), Pair.of(Material.IRON_BLOCK, 8)
-        ), device -> { device.uses += 10; device.damage = 0; }, Pair.of("Uses: ", "+10"), Pair.of("Fully heal teleporter", "")),
+        ), device -> { device.uses += 5; device.damage = 0; }, Pair.of("Uses: ", "+5"), Pair.of("Fully refuel teleporter", "")),
         FINAL_USES(USES, List.of(
                 Pair.of(Material.EMERALD_BLOCK, 8), Pair.of(Material.ENCHANTED_GOLDEN_APPLE, 1), Pair.of(Material.EMERALD_BLOCK, 8),
                 Pair.of(Material.OMINOUS_TRIAL_KEY, 1),         Pair.of(null, 0),            Pair.of(Material.OMINOUS_TRIAL_KEY, 1),
                 Pair.of(Material.DRAGON_BREATH, 1), Pair.of(Material.NETHERITE_INGOT, 1), Pair.of(Material.DRAGON_BREATH, 1)
-        ), device -> { device.uses = -1; device.damage = 0; }, Pair.of("Uses: ", "∞"), Pair.of("Fully heal teleporter", ""));
+        ), device -> { device.uses = -1; device.damage = 0; }, Pair.of("Uses: ", "∞"), Pair.of("Fully refuel teleporter", ""));
 
         public static void initAll() {
             for (UpgradeType value : values()) value.init();
@@ -471,6 +478,9 @@ public class TeleportationDevice implements Cloneable {
                 meta.setCustomModelData(MODEL_DATA_BASE+(prereq == null ? 0 : 2));
 
                 List<Component> loreList = new ArrayList<>();
+                if (prereq != null) loreList.add(Component.text("Requires Evolved Teleporter")
+                        .decoration(TextDecoration.ITALIC, false)
+                        .color(NamedTextColor.GRAY));
                 loreList.add(Component.empty());
                 loreList.addAll(Arrays.stream(lore).map(l -> Component.text(l.getFirst())
                         .color(NamedTextColor.GRAY)

@@ -23,6 +23,7 @@ import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.inventory.*;
 import org.bukkit.util.Vector;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -161,7 +162,7 @@ public class TeleportationDeviceRecipe {
                     if (item == null || amounts[i] == 0) continue;
 
                     item.setAmount(item.getAmount() - amounts[i]);
-                    if (item.getAmount() == 0) playerInv.setItem(i, null);
+                    playerInv.setItem(i, item.getAmount() == 0 ? null : item);
                 }
 
                 if (evt.isMakeAll()) {
@@ -178,7 +179,7 @@ public class TeleportationDeviceRecipe {
                                 if (item.isSimilar(playerItem)) {
                                     item.add();
                                     playerItem.setAmount(playerItem.getAmount() - 1);
-                                    if (playerItem.getAmount() == 0) playerInv.setItem(j, null);
+                                    playerInv.setItem(j, playerItem.getAmount() == 0 ? null : playerItem);
 
                                     stop = false;
                                     continue craft;

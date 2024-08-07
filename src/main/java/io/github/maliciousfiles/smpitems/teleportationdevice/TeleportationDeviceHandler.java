@@ -12,10 +12,10 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.minecraft.util.Mth;
 import org.bukkit.*;
+import org.bukkit.block.Block;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
-import org.bukkit.entity.Item;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -76,16 +76,15 @@ public class TeleportationDeviceHandler implements Listener {
             SMPItems.createItemStack(TeleportationDevice.BASE.evolved().asItem(), meta -> {
                 meta.lore(List.of(
                         Component.empty(),
-                        Component.text("Can Take Final Upgrades: ")
-                                .append(Component.text("yes", NamedTextColor.WHITE))
-                                .decoration(TextDecoration.ITALIC, false)
-                                .color(NamedTextColor.GRAY),
                         Component.text("Range: ")
                                 .append(Component.text("+500", NamedTextColor.WHITE))
                                 .decoration(TextDecoration.ITALIC, false)
                                 .color(NamedTextColor.GRAY),
                         Component.text("Uses: ")
                                 .append(Component.text("+5", NamedTextColor.WHITE))
+                                .decoration(TextDecoration.ITALIC, false)
+                                .color(NamedTextColor.GRAY),
+                        Component.text("Can take final upgrades")
                                 .decoration(TextDecoration.ITALIC, false)
                                 .color(NamedTextColor.GRAY)
                 ));
@@ -185,6 +184,9 @@ public class TeleportationDeviceHandler implements Listener {
             evt.getResult().editMeta(meta -> {
                 String renameText = evt.getInventory().getRenameText();
 
+                if (renameText.isEmpty()) {
+                    renameText = PlainTextComponentSerializer.plainText().serialize((device != null ? device.asItem() : ANCHOR).getItemMeta().displayName());
+                }
                 if (renameText.equals(
                         PlainTextComponentSerializer.plainText().serialize(
                                 evt.getInventory().getFirstItem().getItemMeta().displayName()))) {
@@ -193,9 +195,6 @@ public class TeleportationDeviceHandler implements Listener {
                 }
 
                 renaming[0] = true;
-                if (renameText.isEmpty()) {
-                    renameText = PlainTextComponentSerializer.plainText().serialize(device.asItem().getItemMeta().displayName());
-                }
 
                 Component name = Component.text(renameText)
                         .color(NamedTextColor.AQUA)
@@ -221,8 +220,12 @@ public class TeleportationDeviceHandler implements Listener {
     @EventHandler
     public void onPlace(BlockPlaceEvent evt) {
         if (TeleportationDevice.isAnchor(evt.getItemInHand())) {
-            TeleportationDevice.setAnchor(evt.getBlock(), PlainTextComponentSerializer.plainText()
-                    .serialize(evt.getItemInHand().getItemMeta().displayName()));
+            TextDisplay display = (TextDisplay) evt.getBlock().getWorld().spawnEntity(evt.getBlock().getLocation().add(0.5, 1.25, 0.5), EntityType.TEXT_DISPLAY);
+            display.text(evt.getItemInHand().getItemMeta().displayName());
+            display.setAlignment(TextDisplay.TextAlignment.CENTER);
+            display.setBillboard(Display.Billboard.CENTER);
+
+            TeleportationDevice.setAnchor(evt.getBlock(), display.getUniqueId());
         }
     }
 
@@ -241,7 +244,7 @@ public class TeleportationDeviceHandler implements Listener {
     @EventHandler
     public void onDrop(BlockDropItemEvent evt) {
         if (TeleportationDevice.isAnchor(evt.getBlock())) {
-            evt.getItems().get(0).setItemStack(SMPItems.createItemStack(ANCHOR, meta -> {
+            if (!evt.getItems().isEmpty()) evt.getItems().getFirst().setItemStack(SMPItems.createItemStack(ANCHOR, meta -> {
                 meta.displayName(Component.text(TeleportationDevice.getAnchorName(evt.getBlock().getLocation()))
                         .decoration(TextDecoration.ITALIC, false)
                         .color(NamedTextColor.AQUA));
@@ -250,7 +253,6 @@ public class TeleportationDeviceHandler implements Listener {
             TeleportationDevice.setAnchor(evt.getBlock(), null);
         }
     }
-
 
     private enum ValidationAction { NONE, REMOVE_FAV, UNLINK }
     private static ValidationAction validateSelected(TeleportationDevice device, Object obj) {
@@ -303,9 +305,24 @@ public class TeleportationDeviceHandler implements Listener {
 
         Location destLoc = null;
         if (device.getSelected() instanceof Location loc) {
+            for (int i = 1; i <= 2; i++) {
+                Block block = loc.clone().add(0, i, 0).getBlock();
+                if (block.getType().isSolid() || block.getType() == Material.LAVA) {
+                    player.sendActionBar(Component.text("Anchor obstructed").color(NamedTextColor.RED));
+                    return false;
+                }
+            }
+
             destLoc = loc.clone().add(0.5, 0, 0.5);
         } else if (device.getSelected() instanceof UUID uuid) {
-            destLoc = TeleportationDevice.getPlayerWithItem(uuid).getFirst().getLocation();
+            Player other = TeleportationDevice.getPlayerWithItem(uuid).getFirst();
+
+            if (other.equals(player)) {
+                player.sendActionBar(Component.text("Cannot teleport to self").color(NamedTextColor.RED));
+                return false;
+            }
+
+            destLoc = other.getLocation();
         }
 
         if (showParticles) {
@@ -406,7 +423,6 @@ public class TeleportationDeviceHandler implements Listener {
     private static final float PARTICLE_RADIUS = 0.7f;
     private static final float PARTICLE_HEIGHTS_START = 5f;
     private static final float PARTICLE_HEIGHTS_END = 8f;
-    private static final float PARTICLE_HEIGHT_BUFFER = 0.15f;
     private static final float PARTICLE_REVOLUTIONS_PER_HEIGHT_START = 2;
     private static final float PARTICLE_REVOLUTIONS_PER_HEIGHT_END = 7;
     private static final int PARTICLE_STARTUP_TIME = 8;
@@ -421,35 +437,53 @@ public class TeleportationDeviceHandler implements Listener {
             TeleportationDevice device;
             if ((device = TeleportationDevice.fromItem(player.getActiveItem())) == null) continue;
 
-            int ticks = player.getActiveItemRemainingTime();
-            int useTime = device.getUseTime()*20 - PARTICLE_STARTUP_TIME;
+            Location destLoc = null;
+            boolean isPlayer = false;
 
-            if (ticks % 20 == 12 && ticks > 40 || ticks == 40) {
-                player.getWorld().spawnParticle(Particle.PORTAL,
-                        player.getLocation().add(0, 1, 0),
-                        17, 0, 0, 0, 0.7);
+            if (device.getSelected() instanceof Location loc) {
+                destLoc = loc.clone().add(0.5, 1, 0.5);
+            } else if (device.getSelected() instanceof UUID uuid) {
+                destLoc = TeleportationDevice.getPlayerWithItem(uuid).getFirst().getLocation();
+                isPlayer = true;
             }
 
-            float rawPerc = (float) Math.pow(40, -(float) ticks / useTime);
+            Location[] locs = new Location[] { player.getLocation(), destLoc };
+            for (int i = 0; i < locs.length; i++) {
+                Location loc = locs[i];
 
-            float speed = PARTICLE_SPEED_START + (PARTICLE_SPEED_END - PARTICLE_SPEED_START) * rawPerc;
+                int ticks = player.getActiveItemRemainingTime();
+                int useTime = device.getUseTime()*20 - PARTICLE_STARTUP_TIME;
 
-            if (ticks > useTime) continue;
-            float playerHeight = (float) player.getHeight() + PARTICLE_HEIGHT_BUFFER*2;
-            for (float tickMod = -10; tickMod <= 0; tickMod += 1.3f/speed) {
-                float percent = speed - (speed*ticks+tickMod)/useTime;
+                if (ticks % 20 == 12 && ticks > 40 || ticks == 40) {
+                    loc.getWorld().spawnParticle(Particle.PORTAL,
+                            loc.clone().add(0, 1, 0),
+                            17, 0, 0, 0, 0.7);
+                }
 
-                float numHeights = PARTICLE_HEIGHTS_START + (PARTICLE_HEIGHTS_END - PARTICLE_HEIGHTS_START) * rawPerc;
-                float revolutions = PARTICLE_REVOLUTIONS_PER_HEIGHT_START + (PARTICLE_REVOLUTIONS_PER_HEIGHT_END - PARTICLE_REVOLUTIONS_PER_HEIGHT_START) * rawPerc;
+                boolean atPlayer = i > 0 && isPlayer;
+                if (atPlayer && ticks % 7 != 0) continue;
 
-                float height = (numHeights*playerHeight*percent) % playerHeight;
-                float rad = height/playerHeight * 2*Mth.PI*revolutions;
-                player.getWorld().spawnParticle(Particle.ELECTRIC_SPARK,
-                        player.getLocation().add(
-                                PARTICLE_RADIUS*Mth.sin(rad),
-                                -PARTICLE_HEIGHT_BUFFER+height,
-                                PARTICLE_RADIUS*Mth.cos(rad)),
-                        1, 0, 0, 0, 0);
+                float rawPerc = (float) Math.pow(40, -(float) ticks / useTime);
+
+                float speed = PARTICLE_SPEED_START + (PARTICLE_SPEED_END - PARTICLE_SPEED_START) * rawPerc;
+
+                if (ticks > useTime) continue;
+                float playerHeight = (float) player.getHeight();
+                for (float tickMod = atPlayer ? 0 : -10; tickMod <= 0; tickMod += 1.3f/speed) {
+                    float percent = speed - (speed*ticks+tickMod)/useTime;
+
+                    float numHeights = PARTICLE_HEIGHTS_START + (PARTICLE_HEIGHTS_END - PARTICLE_HEIGHTS_START) * rawPerc;
+                    float revolutions = PARTICLE_REVOLUTIONS_PER_HEIGHT_START + (PARTICLE_REVOLUTIONS_PER_HEIGHT_END - PARTICLE_REVOLUTIONS_PER_HEIGHT_START) * rawPerc;
+
+                    float height = atPlayer ? (float) Math.random()*playerHeight : (numHeights*playerHeight*percent) % playerHeight;
+                    float rad = atPlayer ? (float) Math.random()*2*Mth.PI : height/playerHeight * 2*Mth.PI*revolutions;
+                    loc.getWorld().spawnParticle(atPlayer ? Particle.END_ROD : Particle.ELECTRIC_SPARK,
+                            loc.clone().add(
+                                    PARTICLE_RADIUS*Mth.sin(rad),
+                                    height,
+                                    PARTICLE_RADIUS*Mth.cos(rad)),
+                            1, 0, 0, 0, 0);
+                }
             }
         }
     }
