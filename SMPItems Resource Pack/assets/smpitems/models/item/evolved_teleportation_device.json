@@ -1,0 +1,6 @@
+{
+  "parent": "smpitems:item/teleportation_device",
+  "textures": {
+    "layer0": "smpitems:item/evolved_teleportation_device"
+  }
+}

@@ -53,7 +53,7 @@ public class TeleportationMenuHandler implements Listener {
     }
 
     public static void openMenu(TeleportationDevice device, ItemStack stack, Player player) {
-        MenuInstance menu = generateItems(device, stack, 0);
+        MenuInstance menu = generateItems(device, stack, 0, true);
 
         Inventory inv = Bukkit.createInventory(player, 36, Component.text("Teleportation Menu"));
         inventories.put(inv, menu);
@@ -63,7 +63,7 @@ public class TeleportationMenuHandler implements Listener {
         device.updateItem(stack);
     }
 
-    private static MenuInstance generateItems(TeleportationDevice device, ItemStack deviceItem, int page) {
+    private static MenuInstance generateItems(TeleportationDevice device, ItemStack deviceItem, int page, boolean moveFavs) {
         List<ItemStack> items = new ArrayList<>();
 
         BiFunction<Boolean, Boolean, List<Component>> lore = (isFav, isSelected) -> {
@@ -87,72 +87,77 @@ public class TeleportationMenuHandler implements Listener {
 
         Map<Integer, Object> objMap = new HashMap<>();
 
-        for (UUID uuid : device.getItems()) {
-            Pair<Player, TeleportationDevice> p = TeleportationDevice.getPlayerWithItem(uuid);
+        List<Object> links = new ArrayList<>();
+        links.addAll(device.getItems());
+        links.addAll(device.getAnchors());
+        if (moveFavs) links.sort((o1, o2) -> device.getFavorites().contains(o1) ? -1 : device.getFavorites().contains(o2) ? 1 : 0);
 
-            ItemStack item;
-            if (p != null) {
-                item = new ItemStack(Material.PLAYER_HEAD);
-                item.editMeta(SkullMeta.class, meta -> {
-                    boolean isSelected = device.getSelected().equals(uuid);
-                    boolean isFav = device.getFavorites().contains(uuid);
+        for (Object obj : links) {
+            if (obj instanceof UUID uuid) {
+                Pair<Player, TeleportationDevice> p = TeleportationDevice.getPlayerWithItem(uuid);
 
-                    meta.displayName(Component.text(p.getFirst().getName())
-                            .append(Component.text(isSelected ? " ✪" : "")
-                                    .decoration(TextDecoration.UNDERLINED, false))
-                            .decoration(TextDecoration.ITALIC, false)
-                            .color(NamedTextColor.AQUA)
-                            .decoration(TextDecoration.UNDERLINED, isFav));
-                    meta.setOwningPlayer(p.getFirst());
-                    meta.lore(lore.apply(isFav, isSelected));
-                });
-            } else {
-                item = new ItemStack(Material.BARRIER);
+                ItemStack item;
+                if (p != null) {
+                    item = new ItemStack(Material.PLAYER_HEAD);
+                    item.editMeta(SkullMeta.class, meta -> {
+                        boolean isSelected = device.getSelected().equals(uuid);
+                        boolean isFav = device.getFavorites().contains(uuid);
+
+                        meta.displayName(Component.text(p.getFirst().getName())
+                                .append(Component.text(isSelected ? " ✪" : "")
+                                        .decoration(TextDecoration.UNDERLINED, false))
+                                .decoration(TextDecoration.ITALIC, false)
+                                .color(NamedTextColor.AQUA)
+                                .decoration(TextDecoration.UNDERLINED, isFav));
+                        meta.setOwningPlayer(p.getFirst());
+                        meta.lore(lore.apply(isFav, isSelected));
+                    });
+                } else {
+                    item = new ItemStack(Material.BARRIER);
+                    item.editMeta(meta -> {
+                        boolean isSelected = device.getSelected().equals(uuid);
+                        boolean isFav = device.getFavorites().contains(uuid);
+
+                        meta.displayName(Component.text("Player not found")
+                                .append(Component.text(isSelected ? " ✪" : "")
+                                        .decoration(TextDecoration.UNDERLINED, false))
+                                .decoration(TextDecoration.ITALIC, false)
+                                .color(NamedTextColor.AQUA)
+                                .decoration(TextDecoration.UNDERLINED, isFav));
+                        meta.lore(lore.apply(isFav, isSelected));
+                    });
+                }
+
+                objMap.put(items.size(), uuid);
+                items.add(item);
+            } else if (obj instanceof Location loc) {
+                String name = TeleportationDevice.getAnchorName(loc);
+
+                if (name.isEmpty()) {
+                    device.toggleAnchor(loc);
+                    continue;
+                }
+
+                ItemStack item = new ItemStack(Material.LODESTONE);
                 item.editMeta(meta -> {
-                    boolean isSelected = device.getSelected().equals(uuid);
-                    boolean isFav = device.getFavorites().contains(uuid);
+                    boolean isSelected = device.getSelected().equals(loc);
+                    boolean isFav = device.getFavorites().contains(loc);
 
-                    meta.displayName(Component.text("Player not found")
+                    meta.displayName(Component.text(name)
+                            .color(NamedTextColor.AQUA)
+                            .append(Component.text(" (%s, %s, %s)".formatted(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()))
+                                    .color(NamedTextColor.GRAY)
+                                    .decoration(TextDecoration.UNDERLINED, false))
                             .append(Component.text(isSelected ? " ✪" : "")
                                     .decoration(TextDecoration.UNDERLINED, false))
                             .decoration(TextDecoration.ITALIC, false)
-                            .color(NamedTextColor.AQUA)
                             .decoration(TextDecoration.UNDERLINED, isFav));
                     meta.lore(lore.apply(isFav, isSelected));
                 });
+
+                objMap.put(items.size(), loc);
+                items.add(item);
             }
-
-            objMap.put(items.size(), uuid);
-            items.add(item);
-        }
-
-        for (Location loc : device.getAnchors()) {
-            String name = TeleportationDevice.getAnchorName(loc);
-
-            if (name.isEmpty()) {
-                device.toggleAnchor(loc);
-                continue;
-            }
-
-            ItemStack item = new ItemStack(Material.LODESTONE);
-            item.editMeta(meta -> {
-                boolean isSelected = device.getSelected().equals(loc);
-                boolean isFav = device.getFavorites().contains(loc);
-
-                meta.displayName(Component.text(name)
-                        .color(NamedTextColor.AQUA)
-                        .append(Component.text(" (%s, %s, %s)".formatted(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()))
-                                .color(NamedTextColor.GRAY)
-                                .decoration(TextDecoration.UNDERLINED, false))
-                        .append(Component.text(isSelected ? " ✪" : "")
-                                .decoration(TextDecoration.UNDERLINED, false))
-                        .decoration(TextDecoration.ITALIC, false)
-                        .decoration(TextDecoration.UNDERLINED, isFav));
-                meta.lore(lore.apply(isFav, isSelected));
-            });
-
-            objMap.put(items.size(), loc);
-            items.add(item);
         }
 
         return new MenuInstance(deviceItem, device, page, items, objMap::get);
@@ -170,7 +175,7 @@ public class TeleportationMenuHandler implements Listener {
 
         if (page > 0) contents[27] = PREV_PAGE;
         contents[31] = CANCEL;
-        if (page < items.size()/18) contents[35] = NEXT_PAGE;
+        if (page < (items.size()-1)/18) contents[35] = NEXT_PAGE;
 
         inv.setContents(contents);
     }
@@ -277,7 +282,7 @@ public class TeleportationMenuHandler implements Listener {
             }
 
             if (reload) {
-                MenuInstance newMenu = generateItems(menu.device, menu.deviceItem, menu.page);
+                MenuInstance newMenu = generateItems(menu.device, menu.deviceItem, menu.page, false);
                 fillPage(inv, newMenu.page, newMenu.items);
 
                 inventories.put(inv, newMenu);

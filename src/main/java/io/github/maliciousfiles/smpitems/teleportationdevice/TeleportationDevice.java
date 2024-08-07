@@ -186,7 +186,7 @@ public class TeleportationDevice implements Cloneable {
             anchors.add(location);
 
             if (favorites.size() < MAX_FAV) favorites.add(location);
-            if (selected == NO_SELECTION) selected = location;
+            if (selected.equals(NO_SELECTION)) selected = location;
         }
 
         return this;
@@ -201,7 +201,7 @@ public class TeleportationDevice implements Cloneable {
             items.add(item);
 
             if (favorites.size() < MAX_FAV) favorites.add(item);
-            if (selected == NO_SELECTION) selected = item;
+            if (selected.equals(NO_SELECTION)) selected = item;
         }
 
         return this;
@@ -214,14 +214,16 @@ public class TeleportationDevice implements Cloneable {
     }
 
     public TeleportationDevice removeFavorite(Object obj) {
-        if (obj == selected) {
-            if (favorites.size() == 1) {
+        int oldIdx = favorites.indexOf(obj);
+        favorites.remove(obj);
+
+        if (obj.equals(selected)) {
+            if (favorites.isEmpty()) {
                 selected = NO_SELECTION;
             } else {
-                selected = favorites.get((favorites.indexOf(obj) + 1) % favorites.size());
+                selected = favorites.get((oldIdx + 1) % favorites.size());
             }
         }
-        favorites.remove(obj);
         return this;
     }
 
@@ -338,6 +340,11 @@ public class TeleportationDevice implements Cloneable {
 
     public static ItemStack initUUID(ItemStack item) {
         item.editMeta(meta -> meta.getPersistentDataContainer().set(ID_KEY, UUID_TYPE, UUID.randomUUID()));
+        return item;
+    }
+
+    public static ItemStack initAnchor(ItemStack item) {
+        item.editMeta(meta -> meta.getPersistentDataContainer().set(ID_KEY, UUID_TYPE, (UUID) NO_SELECTION));
         return item;
     }
 

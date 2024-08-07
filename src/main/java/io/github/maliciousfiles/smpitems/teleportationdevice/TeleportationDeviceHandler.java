@@ -19,6 +19,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockDropItemEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
@@ -35,7 +36,7 @@ import org.bukkit.util.Vector;
 import java.util.*;
 
 public class TeleportationDeviceHandler implements Listener {
-    public static final ItemStack ANCHOR = SMPItems.createItemStack(TeleportationDevice.initUUID(new ItemStack(Material.LODESTONE)), meta -> {
+    public static final ItemStack ANCHOR = SMPItems.createItemStack(TeleportationDevice.initAnchor(new ItemStack(Material.LODESTONE)), meta -> {
         meta.displayName(Component.text("Teleportation Anchor")
                 .decoration(TextDecoration.ITALIC, false)
                 .color(NamedTextColor.AQUA));
@@ -232,8 +233,24 @@ public class TeleportationDeviceHandler implements Listener {
 
     @EventHandler
     public void onBreak(BlockBreakEvent evt) {
-        if (TeleportationDevice.isAnchor(evt.getBlock())) TeleportationDevice.setAnchor(evt.getBlock(), null);
+        if (TeleportationDevice.isAnchor(evt.getBlock()) && !evt.isDropItems()) {
+            TeleportationDevice.setAnchor(evt.getBlock(), null);
+        }
     }
+
+    @EventHandler
+    public void onDrop(BlockDropItemEvent evt) {
+        if (TeleportationDevice.isAnchor(evt.getBlock())) {
+            evt.getItems().get(0).setItemStack(SMPItems.createItemStack(ANCHOR, meta -> {
+                meta.displayName(Component.text(TeleportationDevice.getAnchorName(evt.getBlock().getLocation()))
+                        .decoration(TextDecoration.ITALIC, false)
+                        .color(NamedTextColor.AQUA));
+            }));
+
+            TeleportationDevice.setAnchor(evt.getBlock(), null);
+        }
+    }
+
 
     private enum ValidationAction { NONE, REMOVE_FAV, UNLINK }
     private static ValidationAction validateSelected(TeleportationDevice device, Object obj) {
@@ -347,7 +364,7 @@ public class TeleportationDeviceHandler implements Listener {
 
                 evt.getPlayer().sendActionBar(device.hasAnchor(loc) ?
                         Component.text("Teleportation anchor added").color(NamedTextColor.GREEN) :
-                        device.getNumAnchors() < device.getConnections() ?
+                        device.getConnections() == -1 || device.getNumAnchors() < device.getConnections() ?
                                 Component.text("Teleportation anchor removed").color(NamedTextColor.YELLOW) :
                                 Component.text("Teleportation device is at maximum capacity").color(NamedTextColor.RED));
 
@@ -551,7 +568,7 @@ public class TeleportationDeviceHandler implements Listener {
                 teleLoc.clone().add(0, 1, 0), 20, 0, 0, 0, 5);
         evt.getPlayer().teleport(teleLoc);
 
-        if (evt.getPlayer().getGameMode() != GameMode.CREATIVE) {
+        if (evt.getPlayer().getGameMode() != GameMode.CREATIVE && device.getUses() != -1) {
             ItemStack item = evt.getPlayer().getInventory().getItem(evt.getHand());
 
             device.damage(1).updateItem(item);
