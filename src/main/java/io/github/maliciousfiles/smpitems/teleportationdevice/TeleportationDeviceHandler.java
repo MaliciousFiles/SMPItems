@@ -23,14 +23,15 @@ import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
-import org.bukkit.event.player.*;
-import org.bukkit.inventory.*;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.event.player.PlayerToggleSneakEvent;
+import org.bukkit.inventory.CraftingRecipe;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.Damageable;
-import org.bukkit.persistence.PersistentDataContainer;
 
 import java.util.*;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 
 public class TeleportationDeviceHandler implements Listener {
     public static final ItemStack ANCHOR = SMPItems.createItemStack(new ItemStack(Material.LODESTONE), meta -> {
@@ -57,7 +58,13 @@ public class TeleportationDeviceHandler implements Listener {
             .setIngredient('D', Material.DIAMOND)
             .setIngredient('P', Material.ENDER_PEARL);
 
-    static { SMPItems.addRecipe(BASIC_DEVICE_RECIPE); }
+    static {
+        SMPItems.addRecipe(BASIC_DEVICE_RECIPE);
+
+        SMPItems.addItem("teleportation_anchor", ANCHOR);
+        SMPItems.addItem("teleporter", TeleportationDevice.BASE.asItem());
+        SMPItems.addItem("evolved_teleporter", TeleportationDevice.BASE.evolved().asItem());
+    }
 
     public static final TeleportationDeviceRecipe EVOLVED_DEVICE_RECIPE = new TeleportationDeviceRecipe(
             device -> !device.isEvolved(),

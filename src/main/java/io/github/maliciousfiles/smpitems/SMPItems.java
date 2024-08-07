@@ -7,12 +7,19 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.craftbukkit.util.CraftNamespacedKey;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.CraftingRecipe;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -20,10 +27,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
+import java.util.*;
 import java.util.function.Consumer;
 
-public final class SMPItems extends JavaPlugin implements CommandExecutor, TabCompleter {
+public final class SMPItems extends JavaPlugin implements CommandExecutor, TabCompleter, Listener {
 
     public static SMPItems instance;
 
@@ -40,6 +47,11 @@ public final class SMPItems extends JavaPlugin implements CommandExecutor, TabCo
         Bukkit.addRecipe(recipe);
     }
 
+    private static final Map<NamespacedKey, ItemStack> customItems = new HashMap<>();
+    public static void addItem(String id, ItemStack item) {
+        customItems.put(key(id), item);
+    }
+
     @Override
     public void onEnable() {
         instance = this;
@@ -50,6 +62,8 @@ public final class SMPItems extends JavaPlugin implements CommandExecutor, TabCo
         Bukkit.getPluginManager().registerEvents(new TeleportationDeviceHandler(), this);
         Bukkit.getPluginManager().registerEvents(new TeleportationMenuHandler(), this);
         Bukkit.updateRecipes();
+
+        Bukkit.getPluginManager().registerEvents(this, this);
     }
 
     @Override
@@ -64,11 +78,20 @@ public final class SMPItems extends JavaPlugin implements CommandExecutor, TabCo
                     .decorate(TextDecoration.UNDERLINED)
                     .color(NamedTextColor.BLUE)
                     .clickEvent(ClickEvent.openUrl("https://github.com/MaliciousFiles/SMPItems/blob/main/README.md")));
-        } else if (label.equalsIgnoreCase("textures")) {
-            sender.sendMessage(Component.text("Click to download resource pack")
-                    .decorate(TextDecoration.UNDERLINED)
-                    .color(NamedTextColor.BLUE)
-                    .clickEvent(ClickEvent.openUrl("https://github.com/MaliciousFiles/SMPItems/raw/main/SMPItems%20Resource%20Pack.zip")));
+        } else if (label.equalsIgnoreCase("item")) {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage(Component.text("Command can only be used by players", NamedTextColor.RED));
+            } else if (args.length == 0) {
+                sender.sendMessage(Component.text("Invalid item", NamedTextColor.RED));
+            } else {
+                String input = args[0].toLowerCase();
+                ItemStack item = customItems.get(input.startsWith("smpitems:") ? key(input.substring(9)) : key(input));
+                if (item == null) {
+                    sender.sendMessage(Component.text("Invalid item", NamedTextColor.RED));
+                } else {
+                    player.getInventory().addItem(item);
+                }
+            }
         }
 
         return true;
@@ -76,6 +99,22 @@ public final class SMPItems extends JavaPlugin implements CommandExecutor, TabCo
 
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        return List.of();
+        if (!alias.equalsIgnoreCase("item")) return List.of();
+
+        return customItems.keySet().stream()
+                .map(NamespacedKey::toString)
+                .filter(id -> id.toLowerCase().startsWith(args[0].toLowerCase()) || id.substring(9).toLowerCase().startsWith(args[0].toLowerCase()))
+                .toList();
+    }
+
+    private static final UUID resourcePackID = UUID.fromString("cf23a2cb-2c99-46bc-ab16-083e5761dce4");
+    private static final byte[] resourcePackHash = HexFormat.of().parseHex("abbfc13b732c906c361bb7a204e703af77e1efbe");
+    @EventHandler
+    public void onJoin(PlayerJoinEvent evt) {
+        evt.getPlayer().addResourcePack(resourcePackID,
+                "https://github.com/MaliciousFiles/SMPItems/raw/main/SMPItems%20Resource%20Pack.zip",
+                resourcePackHash,
+                "Resource pack to render custom items",
+                true);
     }
 }
