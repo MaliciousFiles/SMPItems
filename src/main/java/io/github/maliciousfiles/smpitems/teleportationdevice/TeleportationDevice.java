@@ -85,6 +85,10 @@ public class TeleportationDevice implements Cloneable {
         this.id = id;
     }
 
+    public static boolean isUninnitedItem(ItemStack item) {
+        return fromItem(item) == null && item != null && item.getItemMeta().getPersistentDataContainer().has(UPGRADEABLE_KEY);
+    }
+
     public static TeleportationDevice fromItem(ItemStack item) {
         if (item == null) return null;
         if (!(item.getItemMeta() instanceof Damageable meta)) return null;
@@ -303,8 +307,9 @@ public class TeleportationDevice implements Cloneable {
         return device;
     }
 
-    public static void initUUID(ItemStack item) {
+    public static ItemStack initUUID(ItemStack item) {
         item.editMeta(meta -> meta.getPersistentDataContainer().set(ID_KEY, UUID_TYPE, UUID.randomUUID()));
+        return item;
     }
 
     public static boolean isAnchor(Block block) {

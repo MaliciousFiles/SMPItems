@@ -78,7 +78,7 @@ public final class SMPItems extends JavaPlugin implements CommandExecutor, TabCo
                     .decorate(TextDecoration.UNDERLINED)
                     .color(NamedTextColor.BLUE)
                     .clickEvent(ClickEvent.openUrl("https://github.com/MaliciousFiles/SMPItems/blob/main/README.md")));
-        } else if (label.equalsIgnoreCase("item")) {
+        } else if (label.equalsIgnoreCase("smpitem")) {
             if (!(sender instanceof Player player)) {
                 sender.sendMessage(Component.text("Command can only be used by players", NamedTextColor.RED));
             } else if (args.length == 0) {
@@ -99,7 +99,7 @@ public final class SMPItems extends JavaPlugin implements CommandExecutor, TabCo
 
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        if (!alias.equalsIgnoreCase("item")) return List.of();
+        if (!alias.equalsIgnoreCase("smpitem")) return List.of();
 
         return customItems.keySet().stream()
                 .map(NamespacedKey::toString)
@@ -107,13 +107,14 @@ public final class SMPItems extends JavaPlugin implements CommandExecutor, TabCo
                 .toList();
     }
 
+    // TODO: not working
     private static final UUID resourcePackID = UUID.fromString("cf23a2cb-2c99-46bc-ab16-083e5761dce4");
     private static final byte[] resourcePackHash = HexFormat.of().parseHex("abbfc13b732c906c361bb7a204e703af77e1efbe");
     @EventHandler
     public void onJoin(PlayerJoinEvent evt) {
         evt.getPlayer().addResourcePack(resourcePackID,
                 "https://github.com/MaliciousFiles/SMPItems/raw/main/SMPItems%20Resource%20Pack.zip",
-                resourcePackHash,
+                null,
                 "Resource pack to render custom items",
                 true);
     }

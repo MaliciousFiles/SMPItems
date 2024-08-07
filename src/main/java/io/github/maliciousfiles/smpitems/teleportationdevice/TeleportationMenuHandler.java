@@ -97,11 +97,13 @@ public class TeleportationMenuHandler implements Listener {
                     boolean isSelected = device.getSelected().equals(uuid);
                     boolean isFav = device.getFavorites().contains(uuid);
 
-                    meta.displayName(Component.text(p.getFirst().getName() + (isSelected ? " ✪" : ""))
+                    meta.displayName(Component.text(p.getFirst().getName())
+                            .append(Component.text(isSelected ? " ✪" : "")
+                                    .decoration(TextDecoration.UNDERLINED, false))
                             .decoration(TextDecoration.ITALIC, false)
-                            .color(NamedTextColor.AQUA));
+                            .color(NamedTextColor.AQUA)
+                            .decoration(TextDecoration.UNDERLINED, isFav));
                     meta.setOwningPlayer(p.getFirst());
-                    meta.setEnchantmentGlintOverride(isFav);
                     meta.lore(lore.apply(isFav, isSelected));
                 });
             } else {
@@ -110,10 +112,12 @@ public class TeleportationMenuHandler implements Listener {
                     boolean isSelected = device.getSelected().equals(uuid);
                     boolean isFav = device.getFavorites().contains(uuid);
 
-                    meta.displayName(Component.text("Player not found" + (isSelected ? " ✪" : ""))
+                    meta.displayName(Component.text("Player not found")
+                            .append(Component.text(isSelected ? " ✪" : "")
+                                    .decoration(TextDecoration.UNDERLINED, false))
                             .decoration(TextDecoration.ITALIC, false)
-                            .color(NamedTextColor.AQUA));
-                    meta.setEnchantmentGlintOverride(isFav);
+                            .color(NamedTextColor.AQUA)
+                            .decoration(TextDecoration.UNDERLINED, isFav));
                     meta.lore(lore.apply(isFav, isSelected));
                 });
             }
@@ -135,12 +139,15 @@ public class TeleportationMenuHandler implements Listener {
                 boolean isSelected = device.getSelected().equals(loc);
                 boolean isFav = device.getFavorites().contains(loc);
 
-                meta.displayName(Component.text(name + (isSelected ? " ✪" : ""))
+                meta.displayName(Component.text(name)
                         .color(NamedTextColor.AQUA)
                         .append(Component.text(" (%s, %s, %s)".formatted(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()))
-                                .color(NamedTextColor.GRAY))
-                        .decoration(TextDecoration.ITALIC, false));
-                meta.setEnchantmentGlintOverride(isFav);
+                                .color(NamedTextColor.GRAY)
+                                .decoration(TextDecoration.UNDERLINED, false))
+                        .append(Component.text(isSelected ? " ✪" : "")
+                                .decoration(TextDecoration.UNDERLINED, false))
+                        .decoration(TextDecoration.ITALIC, false)
+                        .decoration(TextDecoration.UNDERLINED, isFav));
                 meta.lore(lore.apply(isFav, isSelected));
             });
 

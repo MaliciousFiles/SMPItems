@@ -19,10 +19,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.inventory.CraftItemEvent;
-import org.bukkit.event.inventory.InventoryOpenEvent;
-import org.bukkit.event.inventory.PrepareAnvilEvent;
-import org.bukkit.event.inventory.PrepareItemCraftEvent;
+import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
@@ -39,7 +36,7 @@ public class TeleportationDeviceHandler implements Listener {
                 .decoration(TextDecoration.ITALIC, false)
                 .color(NamedTextColor.AQUA));
         meta.lore(List.of(
-                Component.text("Shift-right click with device to link")
+                Component.text("Shift-right click with teleporter to link")
                         .decoration(TextDecoration.ITALIC, false)
                         .color(NamedTextColor.GRAY),
                 Component.empty(),
@@ -62,8 +59,8 @@ public class TeleportationDeviceHandler implements Listener {
         SMPItems.addRecipe(BASIC_DEVICE_RECIPE);
 
         SMPItems.addItem("teleportation_anchor", ANCHOR);
-        SMPItems.addItem("teleporter", TeleportationDevice.BASE.asItem());
-        SMPItems.addItem("evolved_teleporter", TeleportationDevice.BASE.evolved().asItem());
+        SMPItems.addItem("teleporter", TeleportationDevice.initUUID(TeleportationDevice.BASE.asItem()));
+        SMPItems.addItem("evolved_teleporter", TeleportationDevice.initUUID(TeleportationDevice.BASE.evolved().asItem()));
     }
 
     public static final TeleportationDeviceRecipe EVOLVED_DEVICE_RECIPE = new TeleportationDeviceRecipe(
@@ -108,7 +105,7 @@ public class TeleportationDeviceHandler implements Listener {
                     Pair.of(Material.DIAMOND, 1), Pair.of(Material.AMETHYST_SHARD, 1),   Pair.of(Material.DIAMOND, 1)
             ));
 
-    private static final int MENU_TIME = 25;
+    private static final int MENU_TIME = 15;
 
     private static final ItemStack LINK_DEVICES_ITEM = SMPItems.createItemStack(TeleportationDevice.BASE.withName(
             Component.text("Link Devices")
@@ -151,7 +148,12 @@ public class TeleportationDeviceHandler implements Listener {
         }
 
         if (evt.getRecipe() instanceof CraftingRecipe cr && cr.getKey().equals(BASIC_DEVICE_RECIPE.getKey())) {
-            TeleportationDevice.initUUID(evt.getCurrentItem());
+            Bukkit.getScheduler().runTask(SMPItems.instance, () -> {
+                for (ItemStack item : evt.getWhoClicked().getInventory().getContents()) {
+                    if (TeleportationDevice.isUninnitedItem(item)) TeleportationDevice.initUUID(item);
+                }
+                if (TeleportationDevice.isUninnitedItem(evt.getWhoClicked().getItemOnCursor())) TeleportationDevice.initUUID(evt.getWhoClicked().getItemOnCursor());
+            });
         }
     }
 
@@ -191,14 +193,17 @@ public class TeleportationDeviceHandler implements Listener {
                 meta.displayName(name);
             });
 
+
             int[] healing = new int[1];
             if (evt.getInventory().getSecondItem() != null) {
                 evt.getResult().editMeta(Damageable.class, meta -> {
                     healing[0] = Math.min(meta.getDamage(), evt.getInventory().getSecondItem().getAmount());
-                    meta.setDamage(meta.getDamage()-healing[0]);
-                    evt.getInventory().setRepairCostAmount(healing[0]);
+                    if (healing[0] > 0) {
+                        evt.getInventory().setRepairCostAmount(healing[0]);
+                        meta.setDamage(meta.getDamage()-healing[0]);
+                    }
                 });
-            }
+            } else if (!renaming[0]) return;
 
             evt.getInventory().setRepairCost((renaming[0] ? 1 : 0) + healing[0]);
             device.withName(evt.getResult().getItemMeta().displayName()).updateItem(evt.getResult());
@@ -253,8 +258,7 @@ public class TeleportationDeviceHandler implements Listener {
                 device.toggleAnchor(loc).updateItem(item);
             } else {
                 if (action == ValidationAction.REMOVE_FAV) {
-                    msg = "Item not being held, removed from favorites";
-                    device.removeFavorite(device.getSelected()).updateItem(item);
+                    msg = "Item not being held by a player";
                 } else {
                     msg = "Other device unlinked, removed from device";
                     device.toggleItemLink((UUID) device.getSelected()).updateItem(item);
@@ -338,6 +342,7 @@ public class TeleportationDeviceHandler implements Listener {
 
         Damageable meta = (Damageable) evt.getItem().getItemMeta();
         if (meta.getDamage() >= meta.getMaxDamage()) {
+            evt.getPlayer().sendActionBar(Component.text("Teleporter is broken").color(NamedTextColor.RED));
             evt.setCancelled(true);
             return;
         }
@@ -371,7 +376,7 @@ public class TeleportationDeviceHandler implements Listener {
             int useTime = device.getUseTime()*20 - PARTICLE_STARTUP_TIME;
 
             if (ticks % 20 == 12 && ticks > 40 || ticks == 40) {
-                player.spawnParticle(Particle.PORTAL,
+                player.getWorld().spawnParticle(Particle.PORTAL,
                         player.getLocation().add(0, 1, 0),
                         17, 0, 0, 0, 0.7);
             }
@@ -390,13 +395,20 @@ public class TeleportationDeviceHandler implements Listener {
 
                 float height = (numHeights*playerHeight*percent) % playerHeight;
                 float rad = height/playerHeight * 2*Mth.PI*revolutions;
-                player.spawnParticle(Particle.ELECTRIC_SPARK,
+                player.getWorld().spawnParticle(Particle.ELECTRIC_SPARK,
                         player.getLocation().add(
                                 PARTICLE_RADIUS*Mth.sin(rad),
                                 -PARTICLE_HEIGHT_BUFFER+height,
                                 PARTICLE_RADIUS*Mth.cos(rad)),
                         1, 0, 0, 0, 0);
             }
+        }
+    }
+
+    @EventHandler
+    public void onMiddleClick(InventoryClickEvent evt) {
+        if (evt.getClick() == ClickType.MIDDLE && TeleportationDevice.fromItem(evt.getCursor()) != null) {
+            TeleportationDevice.initUUID(evt.getCursor());
         }
     }
 
@@ -458,16 +470,22 @@ public class TeleportationDeviceHandler implements Listener {
         if (!checkValidDestination(device, evt.getItem(), evt.getPlayer(), true)) return;
 
         evt.getPlayer().setCooldown(evt.getItem().getType(), 10);
-        evt.getPlayer().spawnParticle(Particle.REVERSE_PORTAL,
+        evt.getPlayer().getWorld().spawnParticle(Particle.REVERSE_PORTAL,
                 evt.getPlayer().getLocation().add(0, 1, 0),
                 20, 0, 0, 0, 5);
 
         evt.getPlayer().setFallDistance(0);
+
+        Location teleLoc = evt.getPlayer().getLocation();
         if (device.getSelected() instanceof Location loc) {
-            evt.getPlayer().teleport(loc.clone().add(0.5, 1, 0.5));
+            teleLoc = loc.clone().add(0.5, 1, 0.5);
         } else if (device.getSelected() instanceof UUID uuid) {
-            evt.getPlayer().teleport(TeleportationDevice.getPlayerWithItem(uuid).getFirst());
+            teleLoc = TeleportationDevice.getPlayerWithItem(uuid).getFirst().getLocation();
         }
+        evt.getPlayer().getWorld().spawnParticle(Particle.REVERSE_PORTAL,
+                teleLoc.add(0, 1, 0),
+                20, 0, 0, 0, 5);
+        evt.getPlayer().teleport(teleLoc);
 
         if (evt.getPlayer().getGameMode() != GameMode.CREATIVE) {
             ItemStack item = evt.getPlayer().getInventory().getItem(evt.getHand());

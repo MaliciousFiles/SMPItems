@@ -8,7 +8,7 @@ commands:
   recipes:
     description: Get the link to the custom recipes.
     usage: /recipes
-  item:
+  smpitem:
     description: Get an SMP Item.
     usage: /item <item>
     permission: op
