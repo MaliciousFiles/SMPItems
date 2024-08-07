@@ -1,5 +1,6 @@
 package io.github.maliciousfiles.smpitems.teleportationdevice;
 
+import com.destroystokyo.paper.event.block.BlockDestroyEvent;
 import com.destroystokyo.paper.event.server.ServerTickStartEvent;
 import com.mojang.datafixers.util.Pair;
 import io.github.maliciousfiles.smpitems.SMPItems;
@@ -13,18 +14,22 @@ import net.minecraft.util.Mth;
 import org.bukkit.*;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.entity.ItemDespawnEvent;
 import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.inventory.*;
 import org.bukkit.inventory.meta.Damageable;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
 import java.util.*;
@@ -202,17 +207,12 @@ public class TeleportationDeviceHandler implements Listener {
 
             int[] healing = new int[1];
             if (evt.getInventory().getSecondItem() != null) {
-                evt.getResult().editMeta(Damageable.class, meta -> {
-                    healing[0] = Math.min(meta.getDamage(), evt.getInventory().getSecondItem().getAmount());
-                    if (healing[0] > 0) {
-                        evt.getInventory().setRepairCostAmount(healing[0]);
-                        meta.setDamage(meta.getDamage()-healing[0]);
-                    }
-                });
+                healing[0] = Math.min(device.getDamage(), evt.getInventory().getSecondItem().getAmount());
+                if (healing[0] > 0) evt.getInventory().setRepairCostAmount(healing[0]);
             } else if (!renaming[0]) return;
 
             evt.getInventory().setRepairCost((renaming[0] ? 1 : 0) + healing[0]);
-            if (device != null) device.withName(evt.getResult().getItemMeta().displayName()).updateItem(evt.getResult());
+            if (device != null) device.damage((int) (-healing[0] * 0.2 * device.getUses())).withName(evt.getResult().getItemMeta().displayName()).updateItem(evt.getResult());
         }
     }
 
@@ -223,6 +223,11 @@ public class TeleportationDeviceHandler implements Listener {
             TeleportationDevice.setAnchor(evt.getBlock(), PlainTextComponentSerializer.plainText()
                     .serialize(evt.getItemInHand().getItemMeta().displayName()));
         }
+    }
+
+    @EventHandler
+    public void onAnchorExplode(EntityExplodeEvent evt) {
+        evt.blockList().removeIf(TeleportationDevice::isAnchor);
     }
 
     @EventHandler
@@ -291,6 +296,8 @@ public class TeleportationDeviceHandler implements Listener {
                 Vector direction = destLoc.toVector().subtract(player.getLocation().toVector()).normalize();
 
                 for (float dist = 0.6f; dist < 2.4f; dist += 0.3f) {
+                    if (dist*dist > player.getLocation().distanceSquared(destLoc)) break;
+
                     player.spawnParticle(Particle.END_ROD, player.getLocation().add(0,1.3,0)
                                     .add(direction.clone().multiply(dist)),
                             1, 0, 0, 0, 0);
@@ -309,7 +316,7 @@ public class TeleportationDeviceHandler implements Listener {
             String name = TeleportationDevice.getAnchorName(loc);
             bar = Component.text(name, NamedTextColor.AQUA);
 
-            if (!name.equals("Teleportation Anchor")) {
+            if (name.equals("Teleportation Anchor")) {
                 bar = bar.append(Component.text(" (%s, %s, %s)"
                         .formatted(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()), NamedTextColor.GRAY));
             }
@@ -353,21 +360,22 @@ public class TeleportationDeviceHandler implements Listener {
             return;
         }
 
+        BukkitRunnable cancel = new BukkitRunnable() { public void run() { evt.getPlayer().clearActiveItem(); } };
+
         if (device.getSelected().equals(TeleportationDevice.NO_SELECTION)) {
             evt.getPlayer().sendActionBar(Component.text("No destination selected").color(NamedTextColor.RED));
-            evt.setCancelled(true);
+            cancel.runTask(SMPItems.instance);
             return;
         }
 
         if (!checkValidDestination(device, evt.getItem(), evt.getPlayer(), true, true)) {
-            evt.setCancelled(true);
+            cancel.runTask(SMPItems.instance);
             return;
         }
 
-        Damageable meta = (Damageable) evt.getItem().getItemMeta();
-        if (meta.getDamage() >= meta.getMaxDamage()) {
-            evt.getPlayer().sendActionBar(Component.text("Teleporter is broken").color(NamedTextColor.RED));
-            evt.setCancelled(true);
+        if (device.isBroken()) {
+            evt.getPlayer().sendActionBar(Component.text("Out of ender pearls").color(NamedTextColor.RED));
+            cancel.runTask(SMPItems.instance);
             return;
         }
 
@@ -426,6 +434,23 @@ public class TeleportationDeviceHandler implements Listener {
                                 PARTICLE_RADIUS*Mth.cos(rad)),
                         1, 0, 0, 0, 0);
             }
+        }
+    }
+
+    @EventHandler
+    public void onEvolvedDestroy(EntityDamageEvent evt) {
+        TeleportationDevice device;
+        if (evt.getEntity() instanceof Item item && (device = TeleportationDevice.fromItem(item.getItemStack())) != null
+                && device.isEvolved()) {
+            evt.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onEvolvedDespawn(ItemDespawnEvent evt) {
+        TeleportationDevice device;
+        if ((device = TeleportationDevice.fromItem(evt.getEntity().getItemStack())) != null && device.isEvolved()) {
+            evt.setCancelled(true);
         }
     }
 
@@ -523,8 +548,7 @@ public class TeleportationDeviceHandler implements Listener {
             teleLoc = TeleportationDevice.getPlayerWithItem(uuid).getFirst().getLocation();
         }
         evt.getPlayer().getWorld().spawnParticle(Particle.REVERSE_PORTAL,
-                teleLoc.add(0, 1, 0),
-                20, 0, 0, 0, 5);
+                teleLoc.clone().add(0, 1, 0), 20, 0, 0, 0, 5);
         evt.getPlayer().teleport(teleLoc);
 
         if (evt.getPlayer().getGameMode() != GameMode.CREATIVE) {

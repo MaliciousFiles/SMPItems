@@ -101,7 +101,7 @@ public class TeleportationDevice implements Cloneable {
 
         TeleportationDevice device = new TeleportationDevice(
                 pdc.get(RANGE_KEY, PersistentDataType.INTEGER),
-                meta.getMaxDamage(),
+                meta.hasMaxDamage() ? meta.getMaxDamage() : -1,
                 pdc.get(CONNECTIONS_KEY, PersistentDataType.INTEGER),
                 pdc.get(USE_TIME_KEY, PersistentDataType.INTEGER),
                 pdc.get(UPGRADEABLE_KEY, PersistentDataType.BOOLEAN),
@@ -130,6 +130,9 @@ public class TeleportationDevice implements Cloneable {
     public List<Location> getAnchors() { return List.copyOf(anchors); }
     public List<UUID> getItems() { return List.copyOf(items); }
     public boolean hasAnyUpgrade() { return !upgrades.isEmpty(); }
+    public int getUses() { return uses; }
+    public int getDamage() { return damage; }
+    public boolean isBroken() { return uses != -1 && damage >= uses; }
 
     public boolean hasUpgrade(UpgradeType upgrade) {
         return upgrades.contains(upgrade);
@@ -178,12 +181,12 @@ public class TeleportationDevice implements Cloneable {
         if (anchors.contains(location)) {
             anchors.remove(location);
 
-            if (location.equals(selected)) selected = NO_SELECTION;
-            favorites.remove(location);
+            removeFavorite(location);
         } else if (anchors.size() < connections || connections == -1) {
             anchors.add(location);
 
             if (favorites.size() < MAX_FAV) favorites.add(location);
+            if (selected == NO_SELECTION) selected = location;
         }
 
         return this;
@@ -193,12 +196,12 @@ public class TeleportationDevice implements Cloneable {
         if (items.contains(item)) {
             items.remove(item);
 
-            if (item.equals(selected)) selected = NO_SELECTION;
-            favorites.remove(item);
+            removeFavorite(item);
         } else {
             items.add(item);
 
             if (favorites.size() < MAX_FAV) favorites.add(item);
+            if (selected == NO_SELECTION) selected = item;
         }
 
         return this;
@@ -211,8 +214,14 @@ public class TeleportationDevice implements Cloneable {
     }
 
     public TeleportationDevice removeFavorite(Object obj) {
+        if (obj == selected) {
+            if (favorites.size() == 1) {
+                selected = NO_SELECTION;
+            } else {
+                selected = favorites.get((favorites.indexOf(obj) + 1) % favorites.size());
+            }
+        }
         favorites.remove(obj);
-        if (obj == selected) selected = NO_SELECTION;
         return this;
     }
 
@@ -256,7 +265,7 @@ public class TeleportationDevice implements Cloneable {
             meta.setDamage(damage);
             meta.displayName(name);
 
-            int modelDataMod = (uses != -1 && meta.getDamage() >= uses ? 1 : 0) + (isEvolved() ? 2 : 0);
+            int modelDataMod = (uses != -1 && isBroken() ? 1 : 0) + (isEvolved() ? 2 : 0);
             meta.setCustomModelData(MODEL_DATA_BASE + modelDataMod);
 
             meta.setEnchantmentGlintOverride(modelDataMod == 2); // evolved and not broken
@@ -275,6 +284,9 @@ public class TeleportationDevice implements Cloneable {
 
             meta.lore(List.of(
                     Component.text("Shift-right click to cycle favorites (hold for menu)")
+                            .decoration(TextDecoration.ITALIC, false)
+                            .color(NamedTextColor.GRAY),
+                    Component.text("Can be refueled with ender pearls in an anvil")
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY),
                     Component.empty(),
@@ -319,6 +331,7 @@ public class TeleportationDevice implements Cloneable {
         device.upgrades = new ArrayList<>(upgrades);
         device.favorites = new ArrayList<>(favorites);
         device.selected = selected;
+        device.damage = damage;
 
         return device;
     }
