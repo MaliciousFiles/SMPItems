@@ -108,8 +108,8 @@ public final class SMPItems extends JavaPlugin implements Listener {
     }
 
     // TODO: not working
-    private static final UUID resourcePackID = UUID.fromString("cf23a2cb-2c99-46bc-ab16-083e5761dce4");
-    private static final byte[] resourcePackHash = HexFormat.of().parseHex("abbfc13b732c906c361bb7a204e703af77e1efbe");
+    private static final UUID resourcePackID = UUID.fromString("7a6a0940-0a72-40c0-86da-ccd63079d31a");
+    private static final byte[] resourcePackHash = HexFormat.of().parseHex("6a9216647479c1b462efbe52f8e0c0513e9e682d");
     @EventHandler
     public void onJoin(PlayerJoinEvent evt) {
         evt.getPlayer().addResourcePack(resourcePackID,
