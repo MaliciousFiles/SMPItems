@@ -30,7 +30,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.function.Consumer;
 
-public final class SMPItems extends JavaPlugin implements CommandExecutor, TabCompleter, Listener {
+public final class SMPItems extends JavaPlugin implements Listener {
 
     public static SMPItems instance;
 
@@ -73,12 +73,12 @@ public final class SMPItems extends JavaPlugin implements CommandExecutor, TabCo
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (label.equalsIgnoreCase("recipes")) {
+        if (command.getName().equalsIgnoreCase("recipes")) {
             sender.sendMessage(Component.text("Click to open recipes in browser")
                     .decorate(TextDecoration.UNDERLINED)
                     .color(NamedTextColor.BLUE)
                     .clickEvent(ClickEvent.openUrl("https://github.com/MaliciousFiles/SMPItems/blob/main/README.md")));
-        } else if (label.equalsIgnoreCase("smpitem")) {
+        } else if (command.getName().equalsIgnoreCase("smpitem")) {
             if (!(sender instanceof Player player)) {
                 sender.sendMessage(Component.text("Command can only be used by players", NamedTextColor.RED));
             } else if (args.length == 0) {
@@ -99,7 +99,7 @@ public final class SMPItems extends JavaPlugin implements CommandExecutor, TabCo
 
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        if (!alias.equalsIgnoreCase("smpitem")) return List.of();
+        if (!command.getName().equalsIgnoreCase("smpitem")) return List.of();
 
         return customItems.keySet().stream()
                 .map(NamespacedKey::toString)
@@ -114,7 +114,7 @@ public final class SMPItems extends JavaPlugin implements CommandExecutor, TabCo
     public void onJoin(PlayerJoinEvent evt) {
         evt.getPlayer().addResourcePack(resourcePackID,
                 "https://github.com/MaliciousFiles/SMPItems/raw/main/SMPItems%20Resource%20Pack.zip",
-                null,
+                resourcePackHash,
                 "Resource pack to render custom items",
                 true);
     }

@@ -234,7 +234,7 @@ public class TeleportationDevice implements Cloneable {
         int num = Arrays.stream(upgrades).mapToInt(u -> (int) this.upgrades.stream().filter(u::equals).count()).sum();
         int max = Arrays.stream(upgrades).mapToInt(u -> u.limit).sum();
 
-        return " (%s/%s)".formatted(num, max);
+        return num == max ? " (max)" : " (%s/%s upgrades)".formatted(num, max);
     }
 
     public void updateItem(ItemStack stack) {
@@ -275,20 +275,23 @@ public class TeleportationDevice implements Cloneable {
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY),
                     Component.text("Use Time: ")
-                            .append(Component.text(useTime, NamedTextColor.WHITE))
+                            .append(Component.text(useTime+"s", NamedTextColor.WHITE))
                             .append(Component.text(getUpgradeCompletion(UpgradeType.USE_TIME, UpgradeType.FINAL_USE_TIME)))
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY),
                     Component.empty(),
-                    Component.text("Anchors: %s/%s".formatted(anchors.size(), connections == -1 ? "∞" : connections))
+                    Component.text("Anchors: ")
+                            .append(Component.text(anchors.size()+(connections == -1 ? "" : "/"+connections), NamedTextColor.WHITE))
                             .append(Component.text(getUpgradeCompletion(UpgradeType.CONNECTIONS, UpgradeType.FINAL_CONNECTIONS)))
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY),
-                    Component.text("Linked: %s".formatted(items.size()))
+                    Component.text("Linked: ")
+                            .append(Component.text(items.size(), NamedTextColor.WHITE))
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY),
                     Component.empty(),
-                    Component.text("Uses: "+(uses == -1 ? "∞" : "%s/%s".formatted(uses-meta.getDamage(), uses)))
+                    Component.text("Uses: ")
+                            .append(Component.text((uses == -1 ? "∞" : "%s/%s".formatted(uses-meta.getDamage(), uses)), NamedTextColor.WHITE))
                             .append(Component.text(getUpgradeCompletion(UpgradeType.USES, UpgradeType.FINAL_USES)))
                             .decoration(TextDecoration.ITALIC, false)
                             .color(NamedTextColor.GRAY)
@@ -363,12 +366,12 @@ public class TeleportationDevice implements Cloneable {
                 Pair.of(Material.REDSTONE_BLOCK, 2), Pair.of(Material.QUARTZ_BLOCK, 2), Pair.of(Material.REDSTONE_BLOCK, 2),
                 Pair.of(Material.QUARTZ_BLOCK, 2),         Pair.of(null, 0),            Pair.of(Material.QUARTZ_BLOCK, 2),
                 Pair.of(Material.REDSTONE_BLOCK, 2), Pair.of(Material.QUARTZ_BLOCK, 2), Pair.of(Material.REDSTONE_BLOCK, 2)
-        ), device -> device.useTime -= 3, Pair.of("Use Time: ", "-3")),
+        ), device -> device.useTime -= 3, Pair.of("Use Time: ", "-3s")),
         FINAL_USE_TIME(USE_TIME, List.of(
                 Pair.of(Material.REDSTONE_BLOCK, 4), Pair.of(Material.TOTEM_OF_UNDYING, 1), Pair.of(Material.REDSTONE_BLOCK, 4),
                 Pair.of(Material.CRYING_OBSIDIAN, 1),         Pair.of(null, 0),            Pair.of(Material.CRYING_OBSIDIAN, 1),
                 Pair.of(Material.REDSTONE_BLOCK, 4), Pair.of(Material.NETHERITE_INGOT, 1), Pair.of(Material.REDSTONE_BLOCK, 4)
-        ), device -> device.useTime -= 2, Pair.of("Use Time: ", "-2"), Pair.of("Uninterruptible", "")),
+        ), device -> device.useTime -= 2, Pair.of("Use Time: ", "-2s"), Pair.of("Uninterruptible", "")),
         CONNECTIONS(2, List.of(
                 Pair.of(Material.COAL_BLOCK, 4), Pair.of(Material.COPPER_BLOCK, 8), Pair.of(Material.COAL_BLOCK, 4),
                 Pair.of(Material.COPPER_BLOCK, 8),         Pair.of(null, 0),            Pair.of(Material.COPPER_BLOCK, 8),

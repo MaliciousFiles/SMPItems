@@ -34,6 +34,7 @@ import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.*;
 import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.util.Vector;
 
 import java.util.*;
 import java.util.function.BiFunction;
@@ -106,7 +107,9 @@ public class TeleportationDeviceRecipe {
             PlayerInventory playerInv = evt.getPlayer().getInventory();
 
             for (ItemStack item : inv.getMatrix()) {
-                if (item != null) playerInv.addItem(item);
+                if (item != null) playerInv.addItem(item).forEach((i, it) -> {
+                    evt.getPlayer().getWorld().dropItem(evt.getPlayer().getLocation(), it, e -> e.setVelocity(new Vector()));
+                });
             }
             inv.clear();
 

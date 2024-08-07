@@ -407,8 +407,24 @@ public class TeleportationDeviceHandler implements Listener {
 
     @EventHandler
     public void onMiddleClick(InventoryClickEvent evt) {
-        if (evt.getClick() == ClickType.MIDDLE && TeleportationDevice.fromItem(evt.getCursor()) != null) {
-            TeleportationDevice.initUUID(evt.getCursor());
+        if (evt.getClick() == ClickType.MIDDLE && evt.getCursor().isEmpty() && TeleportationDevice.fromItem(evt.getCurrentItem()) != null) {
+            Bukkit.getScheduler().runTask(SMPItems.instance, () -> TeleportationDevice.initUUID(evt.getCursor()));
+        }
+    }
+
+    @EventHandler
+    public void onMiddleClick(InventoryCreativeEvent evt) {
+        TeleportationDevice device;
+        if ((device = TeleportationDevice.fromItem(evt.getCursor())) != null) {
+            for (ItemStack item : evt.getWhoClicked().getInventory().getContents()) {
+                TeleportationDevice d2;
+                if ((d2 = TeleportationDevice.fromItem(item)) != null) {
+                    if (device.getId().equals(d2.getId())) {
+                        TeleportationDevice.initUUID(evt.getCursor());
+                        return;
+                    }
+                }
+            }
         }
     }
 
