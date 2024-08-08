@@ -280,23 +280,13 @@ public class TeleportationDeviceRecipe {
         }
 
         @EventHandler
-        public void onCraft(InventoryClickEvent evt) {
-            if (!(evt.getInventory() instanceof CraftingInventory inv) || evt.getSlotType() != InventoryType.SlotType.RESULT || !isRecipe(inv, 0)) return;
+        public void onCraft(CraftItemEvent evt) {
+            if (!isRecipe(evt.getInventory(), 0)) return;
 
-            ((CraftingMenu) ((CraftPlayer) evt.getWhoClicked()).getHandle().containerMenu).resultSlots.setRecipeUsed(((CraftServer) Bukkit.getServer()).getServer().getRecipeManager().byKey(CraftNamespacedKey.toMinecraft(recipe.getKey())).orElseThrow());
-            ((CraftInventoryCrafting) inv).getMatrixInventory().setCurrentRecipe((RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe>) ((CraftServer) Bukkit.getServer()).getServer().getRecipeManager().byKey(CraftNamespacedKey.toMinecraft(recipe.getKey())).orElseThrow());
-
-            int[] amounts = new int[10];
             for (int i : rawRecipe.keySet()) {
                 ItemStack item = evt.getInventory().getItem(i);
-                if (item != null) amounts[i] = item.getAmount() - rawRecipe.get(i).getSecond();
+                if (item != null) item.setAmount(item.getAmount() - rawRecipe.get(i).getSecond() + 1);
             }
-            Bukkit.getScheduler().runTask(SMPItems.instance, () -> {
-                for (int i : rawRecipe.keySet()) {
-                    ItemStack item = inv.getItem(i);
-                    if (item != null) item.setAmount(amounts[i]);
-                }
-            });
         }
     }
 }

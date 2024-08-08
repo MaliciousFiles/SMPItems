@@ -72,6 +72,8 @@ public class TeleportationDeviceLinkHandler implements Listener {
 
     @EventHandler
     public void postCraft(CraftItemEvent evt) {
+        if (!evt.getCurrentItem().equals(LINK_DEVICES_ITEM)) return;
+
         evt.setCurrentItem(ItemStack.empty());
 
         linkAllDevices(evt.getInventory().getMatrix());
