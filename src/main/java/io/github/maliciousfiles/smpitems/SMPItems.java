@@ -2,6 +2,7 @@ package io.github.maliciousfiles.smpitems;
 
 import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationDevice;
 import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationDeviceHandler;
+import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationDeviceLinkHandler;
 import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationMenuHandler;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -60,6 +61,7 @@ public final class SMPItems extends JavaPlugin implements Listener {
         Bukkit.getResourcePack();
 
         TeleportationDevice.UpgradeType.initAll();
+        TeleportationDeviceLinkHandler.init();
         Bukkit.getPluginManager().registerEvents(new TeleportationDeviceHandler(), this);
         Bukkit.getPluginManager().registerEvents(new TeleportationMenuHandler(), this);
         Bukkit.updateRecipes();
@@ -79,7 +81,7 @@ public final class SMPItems extends JavaPlugin implements Listener {
                     .decorate(TextDecoration.UNDERLINED)
                     .color(NamedTextColor.BLUE)
                     .clickEvent(ClickEvent.openUrl("https://github.com/MaliciousFiles/SMPItems/blob/main/README.md")));
-            sender.sendMessage(Component.text("All recipes are in the in-game recipe browser (though don't show as craftable)")
+            sender.sendMessage(Component.text("All recipes are in the in-game recipe book (though don't show as craftable)")
                     .color(NamedTextColor.GRAY));
         } else if (command.getName().equalsIgnoreCase("smpitem")) {
             if (!(sender instanceof Player player)) {

@@ -89,7 +89,7 @@ public class TeleportationDevice implements Cloneable {
         this.id = id;
     }
 
-    public static boolean isUninnitedItem(ItemStack item) {
+    public static boolean isUninitedItem(ItemStack item) {
         return fromItem(item) == null && item != null && item.getItemMeta().getPersistentDataContainer().has(UPGRADEABLE_KEY);
     }
 

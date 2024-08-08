@@ -1,6 +1,5 @@
 package io.github.maliciousfiles.smpitems.teleportationdevice;
 
-import com.destroystokyo.paper.event.block.BlockDestroyEvent;
 import com.destroystokyo.paper.event.server.ServerTickStartEvent;
 import com.mojang.datafixers.util.Pair;
 import io.github.maliciousfiles.smpitems.SMPItems;
@@ -10,21 +9,11 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.CrafterBlock;
-import net.minecraft.world.level.block.entity.CrafterBlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.craftbukkit.CraftWorld;
-import org.bukkit.craftbukkit.block.CraftBlock;
-import org.bukkit.craftbukkit.block.CraftCrafter;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
-import org.bukkit.craftbukkit.util.CraftLocation;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -44,7 +33,6 @@ import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
-import java.lang.reflect.Method;
 import java.util.*;
 
 public class TeleportationDeviceHandler implements Listener {
@@ -123,10 +111,6 @@ public class TeleportationDeviceHandler implements Listener {
 
     private static final int MENU_TIME = 15;
 
-    private static final ItemStack LINK_DEVICES_ITEM = SMPItems.createItemStack(TeleportationDevice.BASE.withName(
-            Component.text("Link Devices")
-                    .decoration(TextDecoration.ITALIC, false)
-                    .color(NamedTextColor.AQUA)).asItem(), meta -> meta.lore(List.of()));
 
     @EventHandler
     public void getPearl(PlayerInventorySlotChangeEvent evt) {
@@ -134,46 +118,13 @@ public class TeleportationDeviceHandler implements Listener {
     }
 
     @EventHandler
-    public void preCraft(PrepareItemCraftEvent evt) {
-        if (Arrays.stream(evt.getInventory().getMatrix()).allMatch(i -> i == null || TeleportationDevice.fromItem(i) != null) &&
-                Arrays.stream(evt.getInventory().getMatrix()).filter(i -> TeleportationDevice.fromItem(i) != null).count() > 1) {
-            evt.getInventory().setResult(LINK_DEVICES_ITEM);
-        }
-    }
-
-    @EventHandler
-    public void postCraft(InventoryClickEvent evt) {
-        if (!(evt.getInventory() instanceof CraftingInventory inv) ||
-                evt.getSlotType() != InventoryType.SlotType.RESULT ||
-                !LINK_DEVICES_ITEM.equals(evt.getCurrentItem())) return;
-        evt.setCancelled(true);
-        inv.setResult(ItemStack.empty());
-
-        Map<TeleportationDevice, ItemStack> devices = new HashMap<>();
-        for (ItemStack item : inv.getMatrix()) {
-            TeleportationDevice device = TeleportationDevice.fromItem(item);
-            if (device != null) devices.put(device, item);
-        }
-
-        for (TeleportationDevice d1 : devices.keySet()) {
-            for (TeleportationDevice d2 : devices.keySet()) {
-                if (d1 == d2) continue;
-
-                d1.setLinked(d2.getId());
-            }
-
-            d1.updateItem(devices.get(d1));
-        }
-    }
-
-    @EventHandler
     public void postCraft(CraftItemEvent evt) {
         if (evt.getRecipe() instanceof CraftingRecipe cr && cr.getKey().equals(BASIC_DEVICE_RECIPE.getKey())) {
             Bukkit.getScheduler().runTask(SMPItems.instance, () -> {
                 for (ItemStack item : evt.getWhoClicked().getInventory().getContents()) {
-                    if (TeleportationDevice.isUninnitedItem(item)) TeleportationDevice.initUUID(item);
+                    if (TeleportationDevice.isUninitedItem(item)) TeleportationDevice.initUUID(item);
                 }
-                if (TeleportationDevice.isUninnitedItem(evt.getWhoClicked().getItemOnCursor())) TeleportationDevice.initUUID(evt.getWhoClicked().getItemOnCursor());
+                if (TeleportationDevice.isUninitedItem(evt.getWhoClicked().getItemOnCursor())) TeleportationDevice.initUUID(evt.getWhoClicked().getItemOnCursor());
             });
         }
     }
@@ -182,26 +133,6 @@ public class TeleportationDeviceHandler implements Listener {
     public void postAutoCraft(CrafterCraftEvent evt) {
         if (evt.getRecipe() instanceof CraftingRecipe cr && cr.getKey().equals(BASIC_DEVICE_RECIPE.getKey())) {
             evt.setResult(TeleportationDevice.initUUID(evt.getResult()));
-//        } else if (evt.getResult().equals(LINK_DEVICES_ITEM)) {
-//            evt.setResult(ItemStack.empty());
-//
-//            try {
-//                Method dispense = CrafterBlock.class.getDeclaredMethod("dispenseItem", ServerLevel.class, BlockPos.class, CrafterBlockEntity.class, net.minecraft.world.item.ItemStack.class, BlockState.class, RecipeHolder.class);
-//                dispense.setAccessible(true);
-//
-//                ServerLevel level = ((CraftWorld) evt.getBlock().getWorld()).getHandle();
-//                BlockPos pos = CraftLocation.toBlockPosition(evt.getBlock().getLocation());
-//                dispense.invoke(Blocks.CRAFTER,
-//                        level,
-//                        pos,
-//                        level.getBlockEntity(pos),
-//                        ,
-//                        level.getBlockState(pos),
-//
-//                        );
-//            } catch (NoSuchMethodException e) {
-//                throw new RuntimeException(e);
-//            }
         }
     }
 
