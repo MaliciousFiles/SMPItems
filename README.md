@@ -35,7 +35,7 @@ Various custom items, fully integrated into the game for survival use (no comman
 
   ### Use Time
     Use Time: -3s
-  ![image](https://github.com/user-attachments/assets/21caffb4-7212-4a54-92ae-afda56ee4712)
+  ![image](https://github.com/user-attachments/assets/a915e8c2-0369-4ce6-bc70-612c76cdcc76)
 
   ### Connections
     Connections: +2
