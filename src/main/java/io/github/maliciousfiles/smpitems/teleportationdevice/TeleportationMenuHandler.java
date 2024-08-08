@@ -2,6 +2,7 @@ package io.github.maliciousfiles.smpitems.teleportationdevice;
 
 import com.mojang.datafixers.util.Pair;
 import io.github.maliciousfiles.smpitems.SMPItems;
+import io.papermc.paper.event.player.PlayerInventorySlotChangeEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -13,9 +14,11 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 
@@ -200,8 +203,9 @@ public class TeleportationMenuHandler implements Listener {
 
         MenuInstance menu = inventories.get(inv);
 
-        if (FILLER.equals(evt.getCurrentItem()) || EMPTY.equals(evt.getCurrentItem())) return;
-        else if (NEXT_PAGE.equals(evt.getCurrentItem())) {
+        if (FILLER.equals(evt.getCurrentItem()) || EMPTY.equals(evt.getCurrentItem())) {
+
+        } else if (NEXT_PAGE.equals(evt.getCurrentItem())) {
             menu.page++;
             fillPage(inv, menu.page, menu.items);
         } else if (PREV_PAGE.equals(evt.getCurrentItem())) {
@@ -210,6 +214,16 @@ public class TeleportationMenuHandler implements Listener {
         } else if (CANCEL.equals(evt.getCurrentItem())) {
             inv.close();
             inventories.remove(inv);
+
+            if (evt.getHotbarButton() != -1) {
+                PlayerInventory playerInv = evt.getWhoClicked().getInventory();
+                playerInv.setItem(evt.getHotbarButton(), playerInv.getItem(evt.getHotbarButton()));
+            } else if (evt.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
+                PlayerInventory playerInv = evt.getWhoClicked().getInventory();
+                for (int i = 0; i < playerInv.getContents().length; i++) {
+                    if (playerInv.getItem(i) == null) playerInv.setItem(i, null);
+                }
+            }
         } else {
             boolean reload = true;
 

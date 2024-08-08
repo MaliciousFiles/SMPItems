@@ -10,17 +10,28 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CrafterBlock;
+import net.minecraft.world.level.block.entity.CrafterBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.block.CraftBlock;
+import org.bukkit.craftbukkit.block.CraftCrafter;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.util.CraftLocation;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockDropItemEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.CrafterCraftEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.ItemDespawnEvent;
@@ -33,6 +44,7 @@ import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
+import java.lang.reflect.Method;
 import java.util.*;
 
 public class TeleportationDeviceHandler implements Listener {
@@ -163,6 +175,33 @@ public class TeleportationDeviceHandler implements Listener {
                 }
                 if (TeleportationDevice.isUninnitedItem(evt.getWhoClicked().getItemOnCursor())) TeleportationDevice.initUUID(evt.getWhoClicked().getItemOnCursor());
             });
+        }
+    }
+
+    @EventHandler
+    public void postAutoCraft(CrafterCraftEvent evt) {
+        if (evt.getRecipe() instanceof CraftingRecipe cr && cr.getKey().equals(BASIC_DEVICE_RECIPE.getKey())) {
+            evt.setResult(TeleportationDevice.initUUID(evt.getResult()));
+//        } else if (evt.getResult().equals(LINK_DEVICES_ITEM)) {
+//            evt.setResult(ItemStack.empty());
+//
+//            try {
+//                Method dispense = CrafterBlock.class.getDeclaredMethod("dispenseItem", ServerLevel.class, BlockPos.class, CrafterBlockEntity.class, net.minecraft.world.item.ItemStack.class, BlockState.class, RecipeHolder.class);
+//                dispense.setAccessible(true);
+//
+//                ServerLevel level = ((CraftWorld) evt.getBlock().getWorld()).getHandle();
+//                BlockPos pos = CraftLocation.toBlockPosition(evt.getBlock().getLocation());
+//                dispense.invoke(Blocks.CRAFTER,
+//                        level,
+//                        pos,
+//                        level.getBlockEntity(pos),
+//                        ,
+//                        level.getBlockState(pos),
+//
+//                        );
+//            } catch (NoSuchMethodException e) {
+//                throw new RuntimeException(e);
+//            }
         }
     }
 
@@ -443,13 +482,18 @@ public class TeleportationDeviceHandler implements Listener {
             if (device.getSelected() instanceof Location loc) {
                 destLoc = loc.clone().add(0.5, 1, 0.5);
             } else if (device.getSelected() instanceof UUID uuid) {
-                destLoc = device.getAndUpdatePlayer(uuid).getFirst().getLocation();
-                isPlayer = true;
+                Pair<Player, TeleportationDevice> pair = device.getAndUpdatePlayer(uuid);
+
+                if (pair != null) {
+                    destLoc = pair.getFirst().getLocation();
+                    isPlayer = true;
+                }
             }
 
             Location[] locs = new Location[] { player.getLocation(), destLoc };
             for (int i = 0; i < locs.length; i++) {
                 Location loc = locs[i];
+                if (loc == null) continue;
 
                 int ticks = player.getActiveItemRemainingTime();
                 int useTime = device.getUseTime()*20 - PARTICLE_STARTUP_TIME;

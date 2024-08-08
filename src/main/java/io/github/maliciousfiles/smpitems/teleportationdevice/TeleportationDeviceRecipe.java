@@ -5,30 +5,40 @@ import com.mojang.datafixers.util.Pair;
 import io.github.maliciousfiles.smpitems.SMPItems;
 import io.papermc.paper.event.player.PlayerInventorySlotChangeEvent;
 import net.minecraft.network.protocol.game.ClientboundPlaceGhostRecipePacket;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerListener;
+import net.minecraft.world.inventory.CrafterMenu;
 import net.minecraft.world.inventory.CraftingMenu;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.craftbukkit.CraftServer;
+import org.bukkit.craftbukkit.block.CraftBlockState;
+import org.bukkit.craftbukkit.block.CraftCrafter;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.inventory.CraftInventoryCrafter;
 import org.bukkit.craftbukkit.inventory.CraftInventoryCrafting;
+import org.bukkit.craftbukkit.inventory.CraftInventoryView;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.craftbukkit.util.CraftNamespacedKey;
+import org.bukkit.entity.HumanEntity;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryType;
-import org.bukkit.event.inventory.PrepareItemCraftEvent;
+import org.bukkit.event.block.BlockReceiveGameEvent;
+import org.bukkit.event.block.BlockRedstoneEvent;
+import org.bukkit.event.block.CrafterCraftEvent;
+import org.bukkit.event.inventory.*;
 import org.bukkit.inventory.*;
 import org.bukkit.util.Vector;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.IntStream;
 
 public class TeleportationDeviceRecipe {
 
@@ -72,7 +82,43 @@ public class TeleportationDeviceRecipe {
         this.deviceIdx = dIdx;
 
         SMPItems.addRecipe(this.recipe);
-        Bukkit.getPluginManager().registerEvents(new RecipeHandler(), SMPItems.instance);
+        MinecraftServer.getServer().getRecipeManager().byKey(CraftNamespacedKey.toMinecraft(key)).ifPresent(r->{
+            r.value().getIngredients().get(deviceIdx).exact = false;
+        });
+
+        RecipeHandler handler = new RecipeHandler();
+        StaticHandler.handlers.add(handler);
+        Bukkit.getPluginManager().registerEvents(handler, SMPItems.instance);
+    }
+
+    static { Bukkit.getPluginManager().registerEvents(new StaticHandler(), SMPItems.instance); }
+    private static class StaticHandler implements Listener {
+        private static List<RecipeHandler> handlers = new ArrayList<>();
+
+        @EventHandler
+        public void onOpenCrafter(InventoryOpenEvent evt) {
+            if (!(evt.getInventory() instanceof CrafterInventory inv)) return;
+
+            CrafterMenu menu = (CrafterMenu) ((CraftInventoryView) evt.getView()).getHandle();
+
+            menu.removeSlotListener(menu);
+            menu.addSlotListener(new ContainerListener() {
+                @Override
+                public void slotChanged(AbstractContainerMenu handler, int slot, net.minecraft.world.item.ItemStack stack) {
+                    if (slot == 45) return;
+
+                    menu.slotChanged(handler, slot, stack);
+                    handlers.forEach(h->
+                            h.onCrafterInvChange((CraftInventoryCrafter) handler.getBukkitView().getTopInventory()));
+                }
+
+                @Override
+                public void dataChanged(AbstractContainerMenu handler, int property, int value) {}
+            });
+
+            handlers.forEach(h->
+                    h.onCrafterInvChange((CraftInventoryCrafter) menu.getBukkitView().getTopInventory()));
+        }
     }
 
     private class RecipeHandler implements Listener {
@@ -193,14 +239,16 @@ public class TeleportationDeviceRecipe {
             }
         }
 
-        private boolean isRecipe(CraftingInventory inv) {
-            TeleportationDevice device = TeleportationDevice.fromItem(inv.getItem(deviceIdx+1));
+        private boolean isRecipe(Inventory inv, int offset) {
+            Function<ItemStack, String> toString = item -> item == null ? "null" : item.getType().name();
+
+            TeleportationDevice device = TeleportationDevice.fromItem(inv.getItem(deviceIdx+1-offset));
             if (device == null || !validInput.test(device)) {
                 return false;
             }
 
             for (Map.Entry<Integer, Pair<Material, Integer>> entry : rawRecipe.entrySet()) {
-                ItemStack item = inv.getItem(entry.getKey());
+                ItemStack item = inv.getItem(entry.getKey()-offset);
                 if (item == null || item.getType() != entry.getValue().getFirst() || item.getAmount() < entry.getValue().getSecond()) {
                     return false;
                 }
@@ -211,14 +259,29 @@ public class TeleportationDeviceRecipe {
 
         @EventHandler
         public void onPrepareCraft(PrepareItemCraftEvent evt) {
-            if (isRecipe(evt.getInventory())) {
+            if (isRecipe(evt.getInventory(), 0)) {
                 evt.getInventory().setResult(transformer.apply(TeleportationDevice.fromItem(evt.getInventory().getItem(deviceIdx+1))));
             }
         }
 
         @EventHandler
+        public void onCrafterCraft(CrafterCraftEvent evt) {
+            Inventory inv = ((CraftCrafter) evt.getBlock().getState()).getInventory();
+
+            if (isRecipe(inv, 1)) {
+                evt.setResult(transformer.apply(TeleportationDevice.fromItem(inv.getItem(deviceIdx))));
+            }
+        }
+
+        private void onCrafterInvChange(CraftInventoryCrafter bukkitInv) {
+            if (!isRecipe(bukkitInv, 1)) return;
+
+            bukkitInv.setItem(9, transformer.apply(TeleportationDevice.fromItem(bukkitInv.getItem(deviceIdx))));
+        }
+
+        @EventHandler
         public void onCraft(InventoryClickEvent evt) {
-            if (!(evt.getInventory() instanceof CraftingInventory inv) || evt.getSlotType() != InventoryType.SlotType.RESULT || !isRecipe(inv)) return;
+            if (!(evt.getInventory() instanceof CraftingInventory inv) || evt.getSlotType() != InventoryType.SlotType.RESULT || !isRecipe(inv, 0)) return;
 
             ((CraftingMenu) ((CraftPlayer) evt.getWhoClicked()).getHandle().containerMenu).resultSlots.setRecipeUsed(((CraftServer) Bukkit.getServer()).getServer().getRecipeManager().byKey(CraftNamespacedKey.toMinecraft(recipe.getKey())).orElseThrow());
             ((CraftInventoryCrafting) inv).getMatrixInventory().setCurrentRecipe((RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe>) ((CraftServer) Bukkit.getServer()).getServer().getRecipeManager().byKey(CraftNamespacedKey.toMinecraft(recipe.getKey())).orElseThrow());
