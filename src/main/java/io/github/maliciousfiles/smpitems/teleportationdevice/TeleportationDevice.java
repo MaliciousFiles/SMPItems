@@ -415,14 +415,14 @@ public class TeleportationDevice implements Cloneable {
                 Pair.of(Material.LAPIS_BLOCK, 2), Pair.of(Material.GOLD_BLOCK, 2), Pair.of(Material.LAPIS_BLOCK, 2)
         ), device -> device.range += 750, Pair.of("Range: ", "+750")),
         FINAL_RANGE(RANGE, List.of(
-                Pair.of(Material.GOLD_BLOCK, 1), Pair.of(Material.NETHERITE_INGOT, 1), Pair.of(Material.GOLD_BLOCK, 1),
+                Pair.of(Material.GOLD_BLOCK, 4), Pair.of(Material.NETHERITE_INGOT, 1), Pair.of(Material.GOLD_BLOCK, 4),
                 Pair.of(Material.END_CRYSTAL, 1),         Pair.of(null, 0),            Pair.of(Material.END_CRYSTAL, 1),
-                Pair.of(Material.SHULKER_SHELL, 1), Pair.of(Material.DIAMOND_BLOCK, 1), Pair.of(Material.SHULKER_SHELL, 1)
-        ), device -> device.range = -1, Pair.of("Range: ", "∞")),
+                Pair.of(Material.SHULKER_SHELL, 1), Pair.of(Material.DIAMOND_BLOCK, 3), Pair.of(Material.SHULKER_SHELL, 1)
+        ), device -> device.range = -1, Pair.of("Range: ", "∞"), Pair.of("Can teleport to other dimensions", "")),
         USE_TIME(2, List.of(
-                Pair.of(Material.REDSTONE_BLOCK, 2), Pair.of(Material.QUARTZ_BLOCK, 2), Pair.of(Material.REDSTONE_BLOCK, 2),
-                Pair.of(Material.QUARTZ_BLOCK, 2),         Pair.of(null, 0),            Pair.of(Material.QUARTZ_BLOCK, 2),
-                Pair.of(Material.REDSTONE_BLOCK, 2), Pair.of(Material.QUARTZ_BLOCK, 2), Pair.of(Material.REDSTONE_BLOCK, 2)
+                Pair.of(Material.QUARTZ_BLOCK, 2), Pair.of(Material.REDSTONE_BLOCK, 2), Pair.of(Material.QUARTZ_BLOCK, 2),
+                Pair.of(Material.REDSTONE_BLOCK, 2),         Pair.of(null, 0),            Pair.of(Material.REDSTONE_BLOCK, 2),
+                Pair.of(Material.QUARTZ_BLOCK, 2), Pair.of(Material.REDSTONE_BLOCK, 2), Pair.of(Material.QUARTZ_BLOCK, 2)
         ), device -> device.useTime -= 3, Pair.of("Use Time: ", "-3s")),
         FINAL_USE_TIME(USE_TIME, List.of(
                 Pair.of(Material.REDSTONE_BLOCK, 4), Pair.of(Material.TOTEM_OF_UNDYING, 1), Pair.of(Material.REDSTONE_BLOCK, 4),

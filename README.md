@@ -11,14 +11,14 @@ Various custom items, fully integrated into the game for survival use (no comman
   #### Teleporter
     Base Range: 500
     Base Uses: 5
-    Base Use Time: 10
+    Base Use Time: 10s
     Base Connections: 1
   ![image](https://github.com/user-attachments/assets/f9024200-4f2a-46f4-9ef1-5481478e3dbb)
   
   #### Evolved Teleporter
     Base Range: 1000
     Base Uses: 10
-    Base Use Time: 10
+    Base Use Time: 10s
     Base Connections: 1
   ![image](https://github.com/user-attachments/assets/3830feb0-75cc-4a1f-83b7-c2fedae8dd82)
 
@@ -34,7 +34,7 @@ Various custom items, fully integrated into the game for survival use (no comman
   ![image](https://github.com/user-attachments/assets/cb22d8c6-83d1-4467-a542-8f0ceed2d7a7)
 
   ### Use Time
-    Use Time: -3
+    Use Time: -3s
   ![image](https://github.com/user-attachments/assets/bc1df5e7-ca7d-4118-9320-cd7ab1a41928)
 
   ### Connections
@@ -51,10 +51,11 @@ Various custom items, fully integrated into the game for survival use (no comman
   Can be applied once to evolved teleporters which have all of the normal upgrade variant.
   ### Range
     Range: infinite
+    Can teleport to other dimensions
   ![image](https://github.com/user-attachments/assets/0049e1fd-9456-4b19-b472-095b3bb0cf40)
 
   ### Use Time
-    Use Time: 2
+    Use Time: 2s
     Getting damaged no longer cancels teleportation.
   ![image](https://github.com/user-attachments/assets/c8fd896b-bc4a-4199-a551-9801e8fd7b07)
 
