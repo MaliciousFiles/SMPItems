@@ -43,7 +43,7 @@ public class TeleportationDevice implements Cloneable {
     private static final NamespacedKey UPGRADES_KEY = SMPItems.key("upgrades");
     private static final NamespacedKey FAVORITES_KEY = SMPItems.key("favorites");
     private static final NamespacedKey SELECTED_KEY = SMPItems.key("selected");
-    private static final NamespacedKey LAST_KNOWN_HOLDERS_KEY = SMPItems.key("lastKnownHolders");
+    private static final NamespacedKey LAST_KNOWN_HOLDERS_KEY = SMPItems.key("last_holders");
 
     private static final UUIDPersistentDataType UUID_TYPE = new UUIDPersistentDataType();
     private static final SelectionPersistentDataType SELECTION_TYPE = new SelectionPersistentDataType();
