@@ -35,7 +35,7 @@ Various custom items, fully integrated into the game for survival use (no comman
 
   ### Use Time
     Use Time: -3s
-  ![image](https://github.com/user-attachments/assets/bc1df5e7-ca7d-4118-9320-cd7ab1a41928)
+  ![image](https://github.com/user-attachments/assets/21caffb4-7212-4a54-92ae-afda56ee4712)
 
   ### Connections
     Connections: +2
@@ -52,7 +52,7 @@ Various custom items, fully integrated into the game for survival use (no comman
   ### Range
     Range: infinite
     Can teleport to other dimensions
-  ![image](https://github.com/user-attachments/assets/0049e1fd-9456-4b19-b472-095b3bb0cf40)
+  ![image](https://github.com/user-attachments/assets/c80d9013-044d-41e5-a3e4-88aed3008e31)
 
   ### Use Time
     Use Time: 2s
