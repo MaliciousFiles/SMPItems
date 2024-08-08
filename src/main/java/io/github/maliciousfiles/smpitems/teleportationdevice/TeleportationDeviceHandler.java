@@ -259,7 +259,7 @@ public class TeleportationDeviceHandler implements Listener {
         if (obj instanceof Location loc) {
             return TeleportationDevice.getAnchorName(loc).isEmpty() ? ValidationAction.REMOVE_FAV : ValidationAction.NONE;
         } if (obj instanceof UUID uuid) {
-            Pair<Player, TeleportationDevice> pair = TeleportationDevice.getPlayerWithItem(uuid);
+            Pair<Player, TeleportationDevice> pair = device.getAndUpdatePlayer(uuid);
 
             return pair == null ? ValidationAction.REMOVE_FAV : !pair.getSecond().isLinked(device.getId()) ? ValidationAction.UNLINK : ValidationAction.NONE;
         }
@@ -315,7 +315,7 @@ public class TeleportationDeviceHandler implements Listener {
 
             destLoc = loc.clone().add(0.5, 0, 0.5);
         } else if (device.getSelected() instanceof UUID uuid) {
-            Player other = TeleportationDevice.getPlayerWithItem(uuid).getFirst();
+            Player other = device.getAndUpdatePlayer(uuid).getFirst();
 
             if (other.equals(player)) {
                 player.sendActionBar(Component.text("Cannot teleport to self").color(NamedTextColor.RED));
@@ -344,9 +344,9 @@ public class TeleportationDeviceHandler implements Listener {
         return true;
     }
 
-    private static void setActionBar(Object selected, Player player) {
+    private static void setActionBar(TeleportationDevice device, Object obj, Player player) {
         Component bar = Component.empty();
-        if (selected instanceof Location loc) {
+        if (obj instanceof Location loc) {
             String name = TeleportationDevice.getAnchorName(loc);
             bar = Component.text(name, NamedTextColor.AQUA);
 
@@ -354,8 +354,8 @@ public class TeleportationDeviceHandler implements Listener {
                 bar = bar.append(Component.text(" (%s, %s, %s)"
                         .formatted(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()), NamedTextColor.GRAY));
             }
-        } else if (selected instanceof UUID uuid) {
-            bar = Component.text(TeleportationDevice.getPlayerWithItem(uuid).getFirst().getName(), NamedTextColor.AQUA);
+        } else if (obj instanceof UUID uuid) {
+            bar = Component.text(device.getAndUpdatePlayer(uuid).getFirst().getName(), NamedTextColor.AQUA);
         }
 
         player.sendActionBar(bar);
@@ -413,7 +413,7 @@ public class TeleportationDeviceHandler implements Listener {
             return;
         }
 
-        setActionBar(device.getSelected(), evt.getPlayer());
+        setActionBar(device, device.getSelected(), evt.getPlayer());
 
         evt.getPlayer().setShieldBlockingDelay(Integer.MAX_VALUE);
         evt.getPlayer().startUsingItem(evt.getHand());
@@ -443,7 +443,7 @@ public class TeleportationDeviceHandler implements Listener {
             if (device.getSelected() instanceof Location loc) {
                 destLoc = loc.clone().add(0.5, 1, 0.5);
             } else if (device.getSelected() instanceof UUID uuid) {
-                destLoc = TeleportationDevice.getPlayerWithItem(uuid).getFirst().getLocation();
+                destLoc = device.getAndUpdatePlayer(uuid).getFirst().getLocation();
                 isPlayer = true;
             }
 
@@ -562,7 +562,7 @@ public class TeleportationDeviceHandler implements Listener {
             device.select(fav).updateItem(evt.getItem());
 
             if (!checkValidDestination(device, evt.getItem(), evt.getPlayer(), false, true)) return;
-            setActionBar(fav, evt.getPlayer());
+            setActionBar(device, fav, evt.getPlayer());
         }
     }
 
@@ -596,7 +596,7 @@ public class TeleportationDeviceHandler implements Listener {
         if (device.getSelected() instanceof Location loc) {
             teleLoc = loc.clone().add(0.5, 1, 0.5);
         } else if (device.getSelected() instanceof UUID uuid) {
-            teleLoc = TeleportationDevice.getPlayerWithItem(uuid).getFirst().getLocation();
+            teleLoc = device.getAndUpdatePlayer(uuid).getFirst().getLocation();
         }
         evt.getPlayer().getWorld().spawnParticle(Particle.REVERSE_PORTAL,
                 teleLoc.clone().add(0, 1, 0), 20, 0, 0, 0, 5);

@@ -6,10 +6,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
+import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
@@ -46,9 +43,11 @@ public class TeleportationDevice implements Cloneable {
     private static final NamespacedKey UPGRADES_KEY = SMPItems.key("upgrades");
     private static final NamespacedKey FAVORITES_KEY = SMPItems.key("favorites");
     private static final NamespacedKey SELECTED_KEY = SMPItems.key("selected");
+    private static final NamespacedKey LAST_KNOWN_HOLDERS_KEY = SMPItems.key("lastKnownHolders");
 
     private static final UUIDPersistentDataType UUID_TYPE = new UUIDPersistentDataType();
     private static final SelectionPersistentDataType SELECTION_TYPE = new SelectionPersistentDataType();
+    private static final UUIDMapPersistentDataType UUID_MAP_TYPE = new UUIDMapPersistentDataType();
 
     private static final PersistentDataType<List<PersistentDataContainer>, List<Object>> SELECTION_LIST = PersistentDataType.LIST.listTypeFrom(new SelectionPersistentDataType());
     private static final PersistentDataType<List<String>, List<UpgradeType>> UPGRADE_LIST = PersistentDataType.LIST.listTypeFrom(new UpgradePersistentDataType());
@@ -67,6 +66,7 @@ public class TeleportationDevice implements Cloneable {
     private List<Location> anchors = new ArrayList<>();
     private List<UUID> items = new ArrayList<>();
     private List<UpgradeType> upgrades = new ArrayList<>();
+    private Map<UUID, UUID> lastKnownHolders = new HashMap<>();
 
     private int damage = 0;
 
@@ -114,6 +114,7 @@ public class TeleportationDevice implements Cloneable {
         device.items = new ArrayList<>(pdc.get(ITEMS_KEY, UUID_LIST));
         device.upgrades = new ArrayList<>(pdc.get(UPGRADES_KEY, UPGRADE_LIST));
         device.favorites = new ArrayList<>(pdc.get(FAVORITES_KEY, SELECTION_LIST));
+        device.lastKnownHolders = new HashMap<>(pdc.get(LAST_KNOWN_HOLDERS_KEY, UUID_MAP_TYPE));
         device.selected = pdc.getOrDefault(SELECTED_KEY, SELECTION_TYPE, NO_SELECTION);
         device.damage = meta.getDamage();
 
@@ -247,6 +248,25 @@ public class TeleportationDevice implements Cloneable {
         return device;
     }
 
+    public OfflinePlayer getLastKnownHolder(UUID item) {
+        UUID player = lastKnownHolders.get(item);
+        return player == null ? null : Bukkit.getOfflinePlayer(player);
+    }
+
+    public Pair<Player, TeleportationDevice> getAndUpdatePlayer(UUID item) {
+        Pair<Player, TeleportationDevice> ret = Bukkit.getOnlinePlayers().stream().map(p-> {
+            TeleportationDevice device = Arrays.stream(p.getInventory().getContents())
+                    .map(TeleportationDevice::fromItem).filter(d -> d != null && d.id.equals(item)).findFirst().orElse(null);
+
+            return device == null ? null : Pair.of((Player) p, device);
+        }).filter(Objects::nonNull).findFirst().orElse(null);
+
+        if (ret != null) lastKnownHolders.put(item, ret.getFirst().getUniqueId());
+
+        return ret;
+    }
+
+
     public ItemStack asItem() {
         ItemStack stack = new ItemStack(Material.SHIELD);
 
@@ -285,6 +305,7 @@ public class TeleportationDevice implements Cloneable {
             pdc.set(ITEMS_KEY, UUID_LIST, items);
             pdc.set(UPGRADES_KEY, UPGRADE_LIST, upgrades);
             pdc.set(FAVORITES_KEY, SELECTION_LIST, favorites);
+            pdc.set(LAST_KNOWN_HOLDERS_KEY, UUID_MAP_TYPE, lastKnownHolders);
             if (selected != null) pdc.set(SELECTED_KEY, SELECTION_TYPE, selected);
 
             meta.lore(List.of(
@@ -333,6 +354,7 @@ public class TeleportationDevice implements Cloneable {
         device.favorites = new ArrayList<>(favorites);
         device.selected = selected;
         device.damage = damage;
+        device.lastKnownHolders = lastKnownHolders;
 
         return device;
     }
@@ -384,15 +406,6 @@ public class TeleportationDevice implements Cloneable {
 
     public static boolean isAnchor(ItemStack item) {
         return item != null && item.getType().equals(TeleportationDeviceHandler.ANCHOR.getType()) && item.getItemMeta().getPersistentDataContainer().has(ID_KEY);
-    }
-
-    public static Pair<Player, TeleportationDevice> getPlayerWithItem(UUID item) {
-        return Bukkit.getOnlinePlayers().stream().map(p-> {
-            TeleportationDevice device = Arrays.stream(p.getInventory().getContents())
-                    .map(TeleportationDevice::fromItem).filter(d -> d != null && d.id.equals(item)).findFirst().orElse(null);
-
-            return device == null ? null : Pair.of((Player) p, device);
-        }).filter(Objects::nonNull).findFirst().orElse(null);
     }
 
     public enum UpgradeType {
@@ -622,6 +635,34 @@ public class TeleportationDevice implements Cloneable {
         @Override
         public @NotNull UpgradeType fromPrimitive(@NotNull String primitive, @NotNull PersistentDataAdapterContext context) {
             return UpgradeType.valueOf(primitive);
+        }
+    }
+    private static class UUIDMapPersistentDataType implements PersistentDataType<PersistentDataContainer, Map<UUID, UUID>> {
+
+        @Override
+        public @NotNull Class<PersistentDataContainer> getPrimitiveType() {
+            return PersistentDataContainer.class;
+        }
+
+        @Override
+        public @NotNull Class<Map<UUID, UUID>> getComplexType() {
+            return (Class<Map<UUID, UUID>>) (Object) Map.class;
+        }
+
+        @Override
+        public @NotNull PersistentDataContainer toPrimitive(@NotNull Map<UUID, UUID> complex, @NotNull PersistentDataAdapterContext context) {
+            PersistentDataContainer pdc = context.newPersistentDataContainer();
+            complex.forEach((k, v) -> pdc.set(SMPItems.key(k.toString()), UUID_TYPE, v));
+
+            return pdc;
+        }
+
+        @Override
+        public @NotNull Map<UUID, UUID> fromPrimitive(@NotNull PersistentDataContainer primitive, @NotNull PersistentDataAdapterContext context) {
+            Map<UUID, UUID> map = new HashMap<>();
+            primitive.getKeys().forEach(key -> map.put(UUID.fromString(key.getKey()), primitive.get(key, UUID_TYPE)));
+
+            return map;
         }
     }
 }

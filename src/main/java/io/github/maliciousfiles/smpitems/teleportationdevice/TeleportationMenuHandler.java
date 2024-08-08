@@ -9,6 +9,7 @@ import org.apache.commons.lang3.tuple.Triple;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -94,7 +95,7 @@ public class TeleportationMenuHandler implements Listener {
 
         for (Object obj : links) {
             if (obj instanceof UUID uuid) {
-                Pair<Player, TeleportationDevice> p = TeleportationDevice.getPlayerWithItem(uuid);
+                Pair<Player, TeleportationDevice> p = device.getAndUpdatePlayer(uuid);
 
                 ItemStack item;
                 if (p != null) {
@@ -113,6 +114,8 @@ public class TeleportationMenuHandler implements Listener {
                         meta.lore(lore.apply(isFav, isSelected));
                     });
                 } else {
+                    OfflinePlayer last = device.getLastKnownHolder(uuid);
+
                     item = new ItemStack(Material.BARRIER);
                     item.editMeta(meta -> {
                         boolean isSelected = device.getSelected().equals(uuid);
@@ -124,7 +127,15 @@ public class TeleportationMenuHandler implements Listener {
                                 .decoration(TextDecoration.ITALIC, false)
                                 .color(NamedTextColor.AQUA)
                                 .decoration(TextDecoration.UNDERLINED, isFav));
-                        meta.lore(lore.apply(isFav, isSelected));
+
+                        List<Component> loreList = new ArrayList<>();
+                        if (last != null) loreList.add(Component.text("Last held by ")
+                                .append(Component.text(last.getName())
+                                        .color(NamedTextColor.WHITE))
+                                .decoration(TextDecoration.ITALIC, false)
+                                .color(NamedTextColor.GRAY));
+                        loreList.addAll(lore.apply(isFav, isSelected));
+                        meta.lore(loreList);
                     });
                 }
 
