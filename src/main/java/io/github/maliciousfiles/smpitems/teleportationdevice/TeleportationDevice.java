@@ -8,6 +8,7 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
@@ -23,11 +24,9 @@ import java.util.*;
 import java.util.function.Consumer;
 
 public class TeleportationDevice implements Cloneable {
-    private static final int MODEL_DATA_BASE = 9123487;
-
 
     public static final TeleportationDevice BASE = new TeleportationDevice(
-            250, 5, 1, 10, false,
+            500, 5, 1, 10, false,
             Component.text("Teleporter")
                     .color(NamedTextColor.AQUA)
                     .decoration(TextDecoration.ITALIC, false)
@@ -291,7 +290,7 @@ public class TeleportationDevice implements Cloneable {
             meta.displayName(name);
 
             int modelDataMod = (uses != -1 && isBroken() ? 1 : 0) + (isEvolved() ? 2 : 0);
-            meta.setCustomModelData(MODEL_DATA_BASE + modelDataMod);
+            meta.setCustomModelData(SMPItems.MODEL_DATA_BASE + modelDataMod);
 
             meta.setEnchantmentGlintOverride(modelDataMod == 2); // evolved and not broken
 
@@ -396,8 +395,9 @@ public class TeleportationDevice implements Cloneable {
             anchors.add(block.getLocation());
             pdc.set(SMPItems.key(locToString(block.getLocation())), UUID_TYPE, display);
         } else {
-            anchors.remove(block.getLocation());
-            getAnchorDisplay(block.getLocation()).remove();
+            if (!anchors.remove(block.getLocation())) return;
+
+            Optional.ofNullable(getAnchorDisplay(block.getLocation())).ifPresent(Entity::remove);
             pdc.remove(SMPItems.key(locToString(block.getLocation())));
         }
 
@@ -488,7 +488,7 @@ public class TeleportationDevice implements Cloneable {
                 meta.displayName(Component.text(StringUtils.capitaliseAllWords(name().toLowerCase().replace('_', ' '))+" Upgrade")
                         .color(NamedTextColor.AQUA)
                         .decoration(TextDecoration.ITALIC, false));
-                meta.setCustomModelData(MODEL_DATA_BASE+(prereq == null ? 0 : 2));
+                meta.setCustomModelData(SMPItems.MODEL_DATA_BASE+(prereq == null ? 0 : 2));
 
                 List<Component> loreList = new ArrayList<>();
                 if (prereq != null) loreList.add(Component.text("Requires Evolved Teleporter")

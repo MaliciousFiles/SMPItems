@@ -16,6 +16,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
@@ -213,12 +214,8 @@ public class TeleportationMenuHandler implements Listener {
             fillPage(inv, menu.page, menu.items);
         } else if (CANCEL.equals(evt.getCurrentItem())) {
             inv.close();
-            inventories.remove(inv);
 
-            if (evt.getHotbarButton() != -1) {
-                PlayerInventory playerInv = evt.getWhoClicked().getInventory();
-                playerInv.setItem(evt.getHotbarButton(), playerInv.getItem(evt.getHotbarButton()));
-            } else if (evt.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
+            if (evt.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
                 PlayerInventory playerInv = evt.getWhoClicked().getInventory();
                 for (int i = 0; i < playerInv.getContents().length; i++) {
                     if (playerInv.getItem(i) == null) playerInv.setItem(i, null);
@@ -313,6 +310,17 @@ public class TeleportationMenuHandler implements Listener {
                 inventories.put(inv, newMenu);
             }
         }
+    }
+
+    @EventHandler
+    public void onClose(InventoryCloseEvent evt) {
+        if (!inventories.containsKey(evt.getInventory())) return;
+
+        inventories.remove(evt.getInventory());
+
+        // in case they hotkeyed something out
+        PlayerInventory playerInv = evt.getPlayer().getInventory();
+        for (int i = 0; i < 9; i++) playerInv.setItem(i, playerInv.getItem(i));
     }
 
     private static class MenuInstance {

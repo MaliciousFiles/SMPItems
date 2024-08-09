@@ -4,6 +4,8 @@ import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationDevice
 import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationDeviceHandler;
 import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationDeviceLinkHandler;
 import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationMenuHandler;
+import io.papermc.paper.plugin.entrypoint.Entrypoint;
+import io.papermc.paper.plugin.entrypoint.LaunchEntryPointHandler;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -33,6 +35,8 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public final class SMPItems extends JavaPlugin implements Listener {
+
+    public static final int MODEL_DATA_BASE = 9123487;
 
     public static SMPItems instance;
 

@@ -25,11 +25,13 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.CrafterCraftEvent;
 import org.bukkit.event.inventory.CraftItemEvent;
+import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapelessRecipe;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,8 +73,17 @@ public class TeleportationDeviceLinkHandler implements Listener {
     }
 
     @EventHandler
+    public void preCraft(PrepareItemCraftEvent evt) {
+        if (!LINK_DEVICES_ITEM.equals(evt.getInventory().getResult())) return;
+
+        if (Arrays.stream(evt.getInventory().getMatrix()).anyMatch(i -> TeleportationDevice.fromItem(i) == null)) {
+            evt.getInventory().setResult(ItemStack.empty());
+        }
+    }
+
+    @EventHandler
     public void postCraft(CraftItemEvent evt) {
-        if (!evt.getCurrentItem().equals(LINK_DEVICES_ITEM)) return;
+        if (!LINK_DEVICES_ITEM.equals(evt.getCurrentItem())) return;
 
         evt.setCurrentItem(ItemStack.empty());
 
@@ -81,7 +92,7 @@ public class TeleportationDeviceLinkHandler implements Listener {
 
     @EventHandler
     public void postAutoCraft(CrafterCraftEvent evt) {
-        if (!evt.getResult().equals(LINK_DEVICES_ITEM)) return;
+        if (!LINK_DEVICES_ITEM.equals(evt.getResult())) return;
         evt.setResult(ItemStack.empty());
 
         try {

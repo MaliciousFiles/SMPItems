@@ -28,6 +28,7 @@ import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
+import org.bukkit.event.world.PortalCreateEvent;
 import org.bukkit.inventory.*;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -136,6 +137,23 @@ public class TeleportationDeviceHandler implements Listener {
         }
     }
 
+    private static final NamespacedKey shieldDecoration = NamespacedKey.minecraft("shield_decoration");
+    @EventHandler
+    public void preCraft(PrepareItemCraftEvent evt) {
+        if (evt.getRecipe() instanceof CraftingRecipe cr &&
+                cr.getKey().equals(shieldDecoration) &&
+                Arrays.stream(evt.getInventory().getMatrix()).anyMatch(i -> TeleportationDevice.fromItem(i) != null)) {
+            evt.getInventory().setResult(null);
+        }
+    }
+
+    @EventHandler
+    public void onGrindstone(PrepareGrindstoneEvent evt) {
+        if (Arrays.stream(evt.getInventory().getContents()).anyMatch(i -> TeleportationDevice.fromItem(i) != null)) {
+            evt.setResult(null);
+        }
+    }
+
     @EventHandler
     public void onAnvil(PrepareAnvilEvent evt) {
         boolean isAnchor = TeleportationDevice.isAnchor(evt.getInventory().getFirstItem());
@@ -202,6 +220,11 @@ public class TeleportationDeviceHandler implements Listener {
     @EventHandler
     public void onAnchorExplode(EntityExplodeEvent evt) {
         evt.blockList().removeIf(TeleportationDevice::isAnchor);
+    }
+
+    @EventHandler
+    public void onPortalCreate(PortalCreateEvent evt) {
+        evt.getBlocks().forEach(b -> TeleportationDevice.setAnchor(b.getBlock(), null));
     }
 
     @EventHandler
