@@ -156,6 +156,11 @@ public class TeleportationDeviceHandler implements Listener {
 
     @EventHandler
     public void onAnvil(PrepareAnvilEvent evt) {
+        if (TeleportationDevice.fromItem(evt.getInventory().getSecondItem()) != null) {
+            evt.setResult(ItemStack.empty());
+            return;
+        }
+
         boolean isAnchor = TeleportationDevice.isAnchor(evt.getInventory().getFirstItem());
 
         TeleportationDevice device;
