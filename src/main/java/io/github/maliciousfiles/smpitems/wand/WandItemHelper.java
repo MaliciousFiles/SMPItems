@@ -1,9 +1,11 @@
 package io.github.maliciousfiles.smpitems.wand;
 
 import io.github.maliciousfiles.smpitems.SMPItems;
+import io.github.maliciousfiles.smpitems.wand.spells.PushSpellHandler;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
@@ -14,6 +16,7 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 public class WandItemHelper {
 
@@ -32,10 +35,10 @@ public class WandItemHelper {
     }
 
     public static ItemStack initWand(ItemStack wand) { set(wand, WAND, PersistentDataType.BOOLEAN, true); return wand; }
-    public static boolean isWand(ItemStack wand) { return getOrDefault(wand, WAND, PersistentDataType.BOOLEAN, false); }
+    public static boolean isWand(ItemStack wand) { return wand != null && wand.getItemMeta() != null && getOrDefault(wand, WAND, PersistentDataType.BOOLEAN, false); }
 
     public static Spell[] getSpells(ItemStack wand) {
-        Spell[] spells = new Spell[Spell.values().length];
+        Spell[] spells = new Spell[9];
 
         List<String> spellNames = getOrDefault(wand, SPELLS, STRING_LIST, List.of());
         for (int i = 0; i < spells.length; i++) {
@@ -49,8 +52,12 @@ public class WandItemHelper {
         set(wand, SPELLS, STRING_LIST, Arrays.stream(spells).map(Enum::name).toList());
     }
 
+    public static int getSelectedIdx(ItemStack wand) {
+        return getOrDefault(wand, SELECTED, PersistentDataType.INTEGER, 0);
+    }
+
     public static Spell getSelected(ItemStack wand) {
-        return getSpells(wand)[getOrDefault(wand, SELECTED, PersistentDataType.INTEGER, 0)];
+        return getSpells(wand)[getSelectedIdx(wand)];
     }
 
     public static Spell setSelected(ItemStack wand, int idx) {
@@ -59,15 +66,9 @@ public class WandItemHelper {
         return getSpells(wand)[idx];
     }
 
-    public static Spell modSelected(ItemStack wand, int mod) {
-        int newIdx = getOrDefault(wand, SELECTED, PersistentDataType.INTEGER, 0) + mod;
-
-        return setSelected(wand, newIdx);
-    }
-
     public enum Spell {
         EMPTY("Empty", p -> {}),
-        PUSH("Push", (p) -> {}),
+        PUSH("Push", new PushSpellHandler()),
         FIREBALL("Fireball", (p) -> {}),
         ICE_BRIDGE("Bridge of Ice", (p) -> {}),
         WALL("Impenetrable Wall", (p) -> {}),
@@ -93,21 +94,23 @@ public class WandItemHelper {
                         .decoration(TextDecoration.ITALIC, false));
                 meta.setCustomModelData(SMPItems.MODEL_DATA_BASE + ordinal());
                 meta.getPersistentDataContainer().set(SPELL, PersistentDataType.STRING, name());
+                meta.setMaxStackSize(1);
             });
         }
 
         public static Spell fromItem(ItemStack item) {
-            if (item == null) return null;
+            if (item == null) return Spell.EMPTY;
 
             try {
-                return Spell.valueOf(item.getItemMeta().getPersistentDataContainer().get(SPELL, PersistentDataType.STRING));
+                return Spell.valueOf(Optional.ofNullable(item.getItemMeta()
+                        .getPersistentDataContainer().get(SPELL, PersistentDataType.STRING)).orElse(""));
             } catch (IllegalArgumentException ignored) {
-                return null;
+                return Spell.EMPTY;
             }
         }
 
         public static boolean isSpell(ItemStack item) {
-            return fromItem(item) != null;
+            return fromItem(item) != Spell.EMPTY;
         }
     }
 }

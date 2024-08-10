@@ -64,9 +64,9 @@ public class TeleportationDeviceHandler implements Listener {
     static {
         SMPItems.addRecipe(BASIC_DEVICE_RECIPE);
 
-        SMPItems.addItem("teleportation_anchor", () -> ANCHOR);
-        SMPItems.addItem("teleporter", () -> TeleportationDevice.initUUID(TeleportationDevice.BASE.asItem()));
-        SMPItems.addItem("evolved_teleporter", () -> TeleportationDevice.initUUID(TeleportationDevice.BASE.evolved().asItem()));
+        SMPItems.addItem("teleportation_anchor", args -> ANCHOR);
+        SMPItems.addItem("teleporter", args -> TeleportationDevice.initUUID(TeleportationDevice.BASE.asItem()));
+        SMPItems.addItem("evolved_teleporter", args -> TeleportationDevice.initUUID(TeleportationDevice.BASE.evolved().asItem()));
     }
 
     public static final TeleportationDeviceRecipe EVOLVED_DEVICE_RECIPE = new TeleportationDeviceRecipe(
@@ -198,14 +198,15 @@ public class TeleportationDeviceHandler implements Listener {
             });
 
 
-            int[] healing = new int[1];
+            int healPerPearl = (int) (0.2 * device.getUses());
+            int[] pearls = new int[1];
             if (evt.getInventory().getSecondItem() != null) {
-                healing[0] = Math.min(device.getDamage(), evt.getInventory().getSecondItem().getAmount());
-                if (healing[0] > 0) evt.getInventory().setRepairCostAmount(healing[0]);
+                pearls[0] = Math.min(Mth.ceil((float) device.getDamage()/healPerPearl), evt.getInventory().getSecondItem().getAmount());
+                if (pearls[0] > 0) evt.getInventory().setRepairCostAmount(pearls[0]);
             } else if (!renaming[0]) return;
 
-            evt.getInventory().setRepairCost((renaming[0] ? 1 : 0) + healing[0]);
-            if (device != null) device.damage((int) (-healing[0] * 0.2 * device.getUses())).withName(evt.getResult().getItemMeta().displayName()).updateItem(evt.getResult());
+            evt.getInventory().setRepairCost((renaming[0] ? 1 : 0) + pearls[0]);
+            if (device != null) device.damage(-pearls[0] * healPerPearl).withName(evt.getResult().getItemMeta().displayName()).updateItem(evt.getResult());
         }
     }
 

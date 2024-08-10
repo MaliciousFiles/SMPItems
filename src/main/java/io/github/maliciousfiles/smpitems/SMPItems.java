@@ -1,9 +1,11 @@
 package io.github.maliciousfiles.smpitems;
 
+import com.mojang.datafixers.util.Pair;
 import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationDevice;
 import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationDeviceHandler;
 import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationDeviceLinkHandler;
 import io.github.maliciousfiles.smpitems.teleportationdevice.TeleportationMenuHandler;
+import io.github.maliciousfiles.smpitems.wand.WandHandler;
 import io.papermc.paper.plugin.entrypoint.Entrypoint;
 import io.papermc.paper.plugin.entrypoint.LaunchEntryPointHandler;
 import net.kyori.adventure.text.Component;
@@ -53,9 +55,10 @@ public final class SMPItems extends JavaPlugin implements Listener {
         Bukkit.addRecipe(recipe);
     }
 
-    private static final Map<NamespacedKey, Supplier<ItemStack>> customItems = new HashMap<>();
-    public static void addItem(String id, Supplier<ItemStack> item) {
-        customItems.put(key(id), item);
+    public interface ItemSupplier { ItemStack get(String... args); }
+    private static final Map<NamespacedKey, Pair<ItemSupplier, List<String>[]>> customItems = new HashMap<>();
+    public static void addItem(String id, ItemSupplier supplier, List<String>... suggestions) {
+        customItems.put(key(id), Pair.of(supplier, suggestions));
     }
 
     @Override
@@ -70,12 +73,15 @@ public final class SMPItems extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(new TeleportationMenuHandler(), this);
         Bukkit.updateRecipes();
 
+        Bukkit.getPluginManager().registerEvents(new WandHandler(), this);
+
         Bukkit.getPluginManager().registerEvents(this, this);
     }
 
     @Override
     public void onDisable() {
         TeleportationMenuHandler.disable();
+        WandHandler.disable();
     }
 
     @Override
@@ -94,11 +100,24 @@ public final class SMPItems extends JavaPlugin implements Listener {
                 sender.sendMessage(Component.text("Invalid item", NamedTextColor.RED));
             } else {
                 String input = args[0].toLowerCase();
-                ItemStack item = customItems.get(input.startsWith("smpitems:") ? key(input.substring(9)) : key(input)).get();
-                if (item == null) {
+                Pair<ItemSupplier, List<String>[]> info = customItems.get(input.startsWith("smpitems:") ? key(input.substring(9)) : key(input));
+                if (info == null) {
                     sender.sendMessage(Component.text("Invalid item", NamedTextColor.RED));
                 } else {
-                    player.getInventory().addItem(item);
+                    if (args.length != info.getSecond().length+1) {
+                        sender.sendMessage(Component.text("Incorrect number of arguments", NamedTextColor.RED));
+                    } else {
+                        for (int i = 1; i < args.length; i++) {
+                            String arg = args[i];
+                            if (info.getSecond()[i-1].stream().noneMatch(s -> s.equalsIgnoreCase(arg))) {
+                                sender.sendMessage(Component.text("Invalid argument (%s)".formatted(args[i]), NamedTextColor.RED));
+                                return true;
+                            }
+                        }
+
+                        player.getInventory().addItem(info.getFirst().get(Arrays.stream(args, 1, args.length)
+                                .map(String::toLowerCase).toArray(String[]::new)));
+                    }
                 }
             }
         }
@@ -108,12 +127,24 @@ public final class SMPItems extends JavaPlugin implements Listener {
 
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        if (!command.getName().equalsIgnoreCase("smpitem") || args.length > 1) return List.of();
+        if (!command.getName().equalsIgnoreCase("smpitem")) return List.of();
 
-        return customItems.keySet().stream()
-                .map(NamespacedKey::toString)
-                .filter(id -> id.toLowerCase().startsWith(args[0].toLowerCase()) || id.substring(9).toLowerCase().startsWith(args[0].toLowerCase()))
-                .toList();
+        if (args.length == 1) {
+            return customItems.keySet().stream()
+                    .map(NamespacedKey::toString)
+                    .filter(id -> id.toLowerCase().startsWith(args[0].toLowerCase()) || id.substring(9).toLowerCase().startsWith(args[0].toLowerCase()))
+                    .toList();
+        } else {
+            Pair<ItemSupplier, List<String>[]> info = customItems.get(key(args[0].startsWith("smpitems:") ? args[0].substring(9) : args[0]));
+            if (info == null) return List.of();
+
+            int itemArgsIdx = args.length-2;
+            if (itemArgsIdx >= info.getSecond().length) return List.of();
+
+            return info.getSecond()[itemArgsIdx].stream()
+                    .filter(s -> s.toLowerCase().startsWith(args[itemArgsIdx+1].toLowerCase()))
+                    .toList();
+        }
     }
 
     private static final UUID resourcePackID = UUID.fromString("cbaee74b-93e4-4f13-946e-65024985a6b4");

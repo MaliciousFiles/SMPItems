@@ -172,7 +172,7 @@ public class TeleportationDevice implements Cloneable {
     }
 
     public TeleportationDevice damage(int damage) {
-        this.damage += damage;
+        this.damage = Math.clamp(this.damage+damage, 0, this.uses);
 
         return this;
     }
@@ -443,12 +443,12 @@ public class TeleportationDevice implements Cloneable {
                 Pair.of(Material.IRON_BLOCK, 8), Pair.of(Material.EMERALD_BLOCK, 4), Pair.of(Material.IRON_BLOCK, 8),
                 Pair.of(Material.EMERALD_BLOCK, 4),         Pair.of(null, 0),        Pair.of(Material.EMERALD_BLOCK, 4),
                 Pair.of(Material.IRON_BLOCK, 8), Pair.of(Material.EMERALD_BLOCK, 4), Pair.of(Material.IRON_BLOCK, 8)
-        ), device -> { device.uses += 5; device.damage = 0; }, Pair.of("Uses: ", "+5"), Pair.of("Fully refuel teleporter", "")),
+        ), device -> { device.uses += 5; device.damage = 0; }, Pair.of("Uses: ", "+5"), Pair.of("Fully refuels teleporter", "")),
         FINAL_USES(USES, List.of(
                 Pair.of(Material.EMERALD_BLOCK, 8), Pair.of(Material.ENCHANTED_GOLDEN_APPLE, 1), Pair.of(Material.EMERALD_BLOCK, 8),
                 Pair.of(Material.OMINOUS_TRIAL_KEY, 1),         Pair.of(null, 0),            Pair.of(Material.OMINOUS_TRIAL_KEY, 1),
                 Pair.of(Material.DRAGON_BREATH, 1), Pair.of(Material.NETHERITE_INGOT, 1), Pair.of(Material.DRAGON_BREATH, 1)
-        ), device -> { device.uses = -1; device.damage = 0; }, Pair.of("Uses: ", "∞"), Pair.of("Fully refuel teleporter", ""));
+        ), device -> { device.uses = -1; device.damage = 0; }, Pair.of("Uses: ", "∞"), Pair.of("Fully refuels teleporter", ""));
 
         public static void initAll() {
             for (UpgradeType value : values()) value.init();
