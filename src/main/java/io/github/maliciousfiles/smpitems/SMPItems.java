@@ -35,6 +35,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 
 public final class SMPItems extends JavaPlugin implements Listener {
 
@@ -80,6 +81,7 @@ public final class SMPItems extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
+        Bukkit.broadcastMessage("disable");
         TeleportationMenuHandler.disable();
         WandHandler.disable();
     }

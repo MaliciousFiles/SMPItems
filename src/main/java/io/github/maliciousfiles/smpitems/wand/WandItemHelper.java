@@ -1,7 +1,7 @@
 package io.github.maliciousfiles.smpitems.wand;
 
 import io.github.maliciousfiles.smpitems.SMPItems;
-import io.github.maliciousfiles.smpitems.wand.spells.PushSpellHandler;
+import io.github.maliciousfiles.smpitems.wand.spells.*;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -23,6 +23,7 @@ public class WandItemHelper {
     private static final NamespacedKey SELECTED = SMPItems.key("selected");
     private static final NamespacedKey SPELLS = SMPItems.key("spells");
     private static final NamespacedKey WAND = SMPItems.key("wand");
+    private static final NamespacedKey NAME = SMPItems.key("name");
 
     private static final ListPersistentDataType<String, String> STRING_LIST = PersistentDataType.LIST.listTypeFrom(PersistentDataType.STRING);
 
@@ -34,8 +35,23 @@ public class WandItemHelper {
         wand.editMeta(meta -> meta.getPersistentDataContainer().set(key, type, value));
     }
 
+    private static void remove(ItemStack wand, NamespacedKey key) {
+        wand.editMeta(meta -> meta.getPersistentDataContainer().remove(key));
+    }
+
     public static ItemStack initWand(ItemStack wand) { set(wand, WAND, PersistentDataType.BOOLEAN, true); return wand; }
     public static boolean isWand(ItemStack wand) { return wand != null && wand.getItemMeta() != null && getOrDefault(wand, WAND, PersistentDataType.BOOLEAN, false); }
+
+    private static void updateName(ItemStack wand) {
+        wand.editMeta(meta -> meta.displayName(Component.text(getName(wand))
+                .color(NamedTextColor.AQUA)
+                .decorate(TextDecoration.BOLD)
+                .decoration(TextDecoration.ITALIC, false)
+                .append(Component.text(" (", NamedTextColor.GRAY)
+                        .decoration(TextDecoration.BOLD, false)
+                        .append(Component.text(getSelected(wand).name, NamedTextColor.LIGHT_PURPLE))
+                        .append(Component.text(")")))));
+    }
 
     public static Spell[] getSpells(ItemStack wand) {
         Spell[] spells = new Spell[9];
@@ -48,8 +64,24 @@ public class WandItemHelper {
         return spells;
     }
 
+    public static void setName(ItemStack wand, String name) {
+        if (name == null || name.isEmpty()) {
+            remove(wand, NAME);
+        } else {
+            set(wand, NAME, PersistentDataType.STRING, name);
+        }
+
+        updateName(wand);
+    }
+
+    public static String getName(ItemStack wand) {
+        return getOrDefault(wand, NAME, PersistentDataType.STRING, "Wand");
+    }
+
     public static void setSpells(ItemStack wand, Spell[] spells) {
         set(wand, SPELLS, STRING_LIST, Arrays.stream(spells).map(Enum::name).toList());
+
+        updateName(wand);
     }
 
     public static int getSelectedIdx(ItemStack wand) {
@@ -63,20 +95,22 @@ public class WandItemHelper {
     public static Spell setSelected(ItemStack wand, int idx) {
         set(wand, SELECTED, PersistentDataType.INTEGER, idx);
 
+        updateName(wand);
         return getSpells(wand)[idx];
     }
 
+    // TODO: make all line spells raycast (i.e. go through open doors)
     public enum Spell {
         EMPTY("Empty", p -> {}),
-        PUSH("Push", new PushSpellHandler()),
-        FIREBALL("Fireball", (p) -> {}),
-        ICE_BRIDGE("Bridge of Ice", (p) -> {}),
-        WALL("Impenetrable Wall", (p) -> {}),
-        TELEPORT("Backstab", (p) -> {}),
-        ARROW_CLOUD("Arrow Storm", (p) -> {}),
-        LIFE_DRAIN("Vampirism", (p) -> {}),
-        LEVITATE("Hold Monster", (p) -> {}),
-        SWORDS("Haunted Dagger", (p) -> {});
+        PUSH("Push", new PushSpellHandler()),                   // air
+        FIREBALL("Fireball", new FireballSpellHandler()),                        // fire
+        ICE_BRIDGE("Bridge of Ice", new IceBridgeSpellHandler()),                 // water
+        WALL("Impenetrable Wall", new WallSpellHandler()),                   // earth
+        TELEPORT("Backstab", new TeleportSpellHandler()),                        // chaos
+        LASER("Sonic Shriek", new LaserSpellHandler()),                       // energy
+        LIFE_DRAIN("Vampirism", new LifeDrainSpellHandler()),                     // life
+        LEVITATE("Hold Monster", new LevitateSpellHandler()),                    // order
+        SWORDS("Haunted Daggers", new SwordsSpellHandler());                   // death
 
         private static final NamespacedKey SPELL = SMPItems.key("spell");
 
@@ -89,7 +123,7 @@ public class WandItemHelper {
         }
 
         public ItemStack getItem() {
-            return SMPItems.createItemStack(new ItemStack(Material.CLOCK), meta -> {
+            return SMPItems.createItemStack(new ItemStack(Material.RECOVERY_COMPASS), meta -> {
                 meta.displayName(Component.text(name, NamedTextColor.LIGHT_PURPLE)
                         .decoration(TextDecoration.ITALIC, false));
                 meta.setCustomModelData(SMPItems.MODEL_DATA_BASE + ordinal());

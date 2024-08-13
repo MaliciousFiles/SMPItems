@@ -9,10 +9,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.*;
 import org.bukkit.inventory.Inventory;
@@ -20,11 +18,13 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.ShapedRecipe;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 public class WandHandler implements Listener {
 
-    private static final ItemStack WAND_ITEM = SMPItems.createItemStack(WandItemHelper.initWand(new ItemStack(Material.CLOCK)),
+    private static final ItemStack WAND_ITEM = SMPItems.createItemStack(WandItemHelper.initWand(new ItemStack(Material.RECOVERY_COMPASS)),
             meta -> {
                 meta.setEnchantmentGlintOverride(true);
                 meta.displayName(Component.text("Wand", NamedTextColor.AQUA)
@@ -42,6 +42,8 @@ public class WandHandler implements Listener {
             .setIngredient('N', Material.NETHER_STAR);
 
     static {
+        WandItemHelper.setSelected(WAND_ITEM, 0); // init name, etc.
+
         SMPItems.addRecipe(WAND_RECIPE);
 
         SMPItems.addItem("wand", args -> WAND_ITEM);
@@ -52,8 +54,9 @@ public class WandHandler implements Listener {
     // cast + open menu
     @EventHandler
     public void onInteract(PlayerInteractEvent evt) {
-        if (WandItemHelper.isWand(evt.getItem()) && evt.getAction().isRightClick() && !evt.getPlayer().isSneaking()) {
+        if (WandItemHelper.isWand(evt.getItem()) && evt.getAction().isRightClick() && !evt.getPlayer().isSneaking() && !evt.getPlayer().hasCooldown(Material.RECOVERY_COMPASS)) {
             WandItemHelper.getSelected(evt.getItem()).handler.castSpell(evt.getPlayer());
+            evt.getPlayer().setCooldown(Material.RECOVERY_COMPASS, 30);
         } else if (hotbars.containsKey(evt.getPlayer()) && evt.getAction().isRightClick()) {
             tryResetHotbar(evt.getPlayer());
             ItemStack wand = evt.getPlayer().getInventory().getItemInMainHand();
@@ -62,13 +65,13 @@ public class WandHandler implements Listener {
             menu.setContents(Arrays.stream(WandItemHelper.getSpells(wand))
                     .map(s -> s == WandItemHelper.Spell.EMPTY ? null : s.getItem()).toArray(ItemStack[]::new));
 
-            menus.put(menu, wand);
+            menus.put(menu, Pair.of(wand, wand.clone()));
             evt.getPlayer().openInventory(menu);
         }
     }
 
     // handle menu
-    private static final Map<Inventory, ItemStack> menus = new HashMap<>();
+    private static final Map<Inventory, Pair<ItemStack, ItemStack>> menus = new HashMap<>();
 
     private static boolean isLegalSpell(ItemStack item, ItemStack[] spells) {
         WandItemHelper.Spell spell = WandItemHelper.Spell.fromItem(item);
@@ -84,16 +87,57 @@ public class WandHandler implements Listener {
         ItemStack[] spells = evt.getInventory().getContents();
 
         PlayerInventory playerInv = evt.getWhoClicked().getInventory();
-        if (playerInv.equals(evt.getClickedInventory())) { // is player inv
+        if (playerInv.equals(evt.getClickedInventory()) || evt.getClickedInventory() == null) { // is player inv or outside
+            ItemStack item = null;
+
             switch (evt.getAction()) {
                 case InventoryAction.MOVE_TO_OTHER_INVENTORY:
-                    if (!isLegalSpell(evt.getCurrentItem(), spells)) evt.setCancelled(true);
+                    if (!isLegalSpell(evt.getCurrentItem(), spells)) {
+                        evt.setCancelled(true);
+                        playerInv.setItem(evt.getSlot(), evt.getCurrentItem());
+                        Bukkit.getScheduler().runTask(SMPItems.instance, () -> {
+                            menus.put(evt.getInventory(), Pair.of(evt.getCurrentItem(), evt.getCurrentItem().clone()));
+                        });
+                    }
                     break;
+                case InventoryAction.DROP_ALL_CURSOR:
+                case InventoryAction.DROP_ONE_CURSOR:
+                    item = evt.getCursor();
                 case InventoryAction.DROP_ALL_SLOT:
                 case InventoryAction.DROP_ONE_SLOT:
-                    if (menus.get(evt.getInventory()).equals(evt.getCurrentItem())) {
+                    if (item == null) item = evt.getCurrentItem();
+
+                    if (menus.get(evt.getInventory()).getSecond().equals(item)) {
                         trySaveInventory(evt.getInventory());
                         Bukkit.getScheduler().runTask(SMPItems.instance, evt.getInventory()::close);
+                    }
+                    break;
+                case InventoryAction.PICKUP_ALL:
+                case InventoryAction.PICKUP_HALF:
+                case InventoryAction.PICKUP_ONE:
+                case InventoryAction.PICKUP_SOME:
+                    if (menus.get(evt.getInventory()).getSecond().equals(evt.getCurrentItem())) {
+                        Bukkit.getScheduler().runTask(SMPItems.instance, () -> {
+                            menus.put(evt.getInventory(), Pair.of(evt.getCursor(), evt.getCursor().clone()));
+                        });
+                    }
+                    break;
+                case InventoryAction.PLACE_ALL:
+                case InventoryAction.PLACE_ONE:
+                case InventoryAction.PLACE_SOME:
+                case InventoryAction.SWAP_WITH_CURSOR:
+                    if (menus.get(evt.getInventory()).getSecond().equals(evt.getCursor())) {
+                        Bukkit.getScheduler().runTask(SMPItems.instance, () -> {
+                            menus.put(evt.getInventory(), Pair.of(evt.getCurrentItem(), evt.getCurrentItem().clone()));
+                        });
+                    }
+                    break;
+                case InventoryAction.HOTBAR_SWAP:
+                    ItemStack hotbarItem = playerInv.getItem(evt.getHotbarButton());
+                    if (menus.get(evt.getInventory()).getSecond().equals(hotbarItem)) {
+                        Bukkit.getScheduler().runTask(SMPItems.instance, () -> {
+                            menus.put(evt.getInventory(), Pair.of(evt.getCurrentItem(), evt.getCurrentItem().clone()));
+                        });
                     }
                     break;
             }
@@ -106,6 +150,12 @@ public class WandHandler implements Listener {
                     if (!isLegalSpell(evt.getCursor(), spells)) {
                         evt.setCancelled(true);
                         evt.getView().setCursor(evt.getCursor());
+
+                        if (menus.get(evt.getInventory()).getSecond().equals(evt.getCursor())) {
+                            Bukkit.getScheduler().runTask(SMPItems.instance, () -> {
+                                menus.put(evt.getInventory(), Pair.of(evt.getCursor(), evt.getCursor().clone()));
+                            });
+                        }
                     }
                     break;
                 case HOTBAR_SWAP:
@@ -113,6 +163,12 @@ public class WandHandler implements Listener {
                     if (!isLegalSpell(item, spells)) {
                         evt.setCancelled(true);
                         playerInv.setItem(evt.getHotbarButton(), item);
+
+                        if (menus.get(evt.getInventory()).getSecond().equals(item)) {
+                            Bukkit.getScheduler().runTask(SMPItems.instance, () -> {
+                                menus.put(evt.getInventory(), Pair.of(playerInv.getItem(evt.getHotbarButton()), item.clone()));
+                            });
+                        }
                     }
                     break;
             }
@@ -128,9 +184,9 @@ public class WandHandler implements Listener {
     }
 
     private static void trySaveInventory(Inventory inv) {
-        ItemStack wand;
-        if ((wand = menus.remove(inv)) != null) {
-            WandItemHelper.setSpells(wand,
+        Pair<ItemStack, ItemStack> pair;
+        if ((pair = menus.remove(inv)) != null) {
+            WandItemHelper.setSpells(pair.getFirst(),
                     Arrays.stream(inv.getContents())
                             .map(WandItemHelper.Spell::fromItem).toArray(WandItemHelper.Spell[]::new));
         }
@@ -153,6 +209,8 @@ public class WandHandler implements Listener {
                 }
             }
         }
+
+        evt.getPlayer().getInventory().setItemInMainHand(evt.getPlayer().getInventory().getItemInMainHand());
     }
 
     // select spell
@@ -215,6 +273,11 @@ public class WandHandler implements Listener {
     }
 
     @EventHandler
+    public void onOpenInventory(InventoryOpenEvent evt) {
+        tryResetHotbar((Player) evt.getPlayer());
+    }
+
+    @EventHandler
     public void onDisconnect(PlayerQuitEvent evt) {
         tryResetHotbar(evt.getPlayer());
     }
@@ -222,21 +285,36 @@ public class WandHandler implements Listener {
     @EventHandler
     public void onDeath(EntityDamageEvent evt) {
         if (evt.getEntity() instanceof Player player && player.getHealth() - evt.getFinalDamage() <= 0) {
+            trySaveInventory(player.getOpenInventory().getTopInventory());
             tryResetHotbar(player);
         }
     }
 
-    // prevent renaming spells
+    // prevent renaming spells, implement renaming wand
     @EventHandler
     public void onAnvil(PrepareAnvilEvent evt) {
         if (WandItemHelper.Spell.isSpell(evt.getInventory().getFirstItem())) {
             evt.setResult(null);
         }
+
+        if (WandItemHelper.isWand(evt.getInventory().getFirstItem())) {
+            String name = WandItemHelper.getName(evt.getInventory().getFirstItem());
+            String input = evt.getInventory().getRenameText();
+
+            if (!name.equals(input) && evt.getResult() == null) {
+                // TODO: anvil
+            }
+        }
     }
 
     public static void disable() {
-        Bukkit.broadcastMessage("Disabling wand handler");
         hotbars.keySet().forEach(WandHandler::tryResetHotbar);
         menus.keySet().forEach(Inventory::close);
+
+        for (WandItemHelper.Spell value : WandItemHelper.Spell.values()) {
+            if (value.handler instanceof ToggleableSpellHandler toggleable) {
+                Bukkit.getOnlinePlayers().forEach(p -> { if (toggleable.isActive(p)) toggleable.deactivate(p); });
+            }
+        }
     }
 }

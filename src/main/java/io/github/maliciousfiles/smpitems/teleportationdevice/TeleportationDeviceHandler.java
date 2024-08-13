@@ -480,7 +480,7 @@ public class TeleportationDeviceHandler implements Listener {
                     float revolutions = PARTICLE_REVOLUTIONS_PER_HEIGHT_START + (PARTICLE_REVOLUTIONS_PER_HEIGHT_END - PARTICLE_REVOLUTIONS_PER_HEIGHT_START) * rawPerc;
 
                     float height = atPlayer ? (float) Math.random()*playerHeight : (numHeights*playerHeight*percent) % playerHeight;
-                    float rad = atPlayer ? (float) Math.random()*2*Mth.PI : height/playerHeight * 2*Mth.PI*revolutions;
+                    float rad = atPlayer ? (float) Math.random()*Mth.TWO_PI : height/playerHeight * Mth.TWO_PI*revolutions;
                     loc.getWorld().spawnParticle(atPlayer ? Particle.END_ROD : Particle.ELECTRIC_SPARK,
                             loc.clone().add(
                                     PARTICLE_RADIUS*Mth.sin(rad),
